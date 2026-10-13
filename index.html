@@ -164,7 +164,25 @@ body:not([data-p=or]) select[data-v]{display:none}
       <label><input type="checkbox" id="grem"> تذكّر على هذا الجهاز</label>
     </div>
     <div class="row" style="margin-top:8px">
-      <div style="flex:1;min-width:180px"><span class="lbl">الصوت (voice)</span><input id="gvoice" list="gvoices" value="Kore" style="width:100%" dir="ltr" placeholder="Kore"></div>
+      <div style="flex:1;min-width:180px"><span class="lbl">الصوت (voice)</span>
+        <select id="gvoice" style="width:100%" aria-label="اختر صوت Google">
+          <option value="Zephyr">Zephyr — صوت مشرق</option>
+          <option value="Puck">Puck — شاب مرح</option>
+          <option value="Charon">Charon — راوي معلوماتي</option>
+          <option value="Kore" selected>Kore — صوت حازم</option>
+          <option value="Fenrir">Fenrir — صوت متحمس</option>
+          <option value="Leda">Leda — صوت شبابي</option>
+          <option value="Aoede">Aoede — صوت خفيف</option>
+          <option value="Callirrhoe">Callirrhoe — صوت هادئ</option>
+          <option value="Enceladus">Enceladus — صوت ناعم النَفَس</option>
+          <option value="Algenib">Algenib — صوت أجش</option>
+          <option value="Gacrux">Gacrux — صوت ناضج</option>
+          <option value="Achernar">Achernar — صوت هادئ وناعم</option>
+          <option value="Achird">Achird — صوت ودود</option>
+          <option value="Sadaltager">Sadaltager — صوت خبير</option>
+          <option value="Sulafat">Sulafat — صوت دافئ</option>
+        </select>
+      </div>
       <div style="flex:2;min-width:200px"><span class="lbl">الموديل</span>
         <select id="gmodel" style="width:100%" dir="ltr">
           <option value="gemini-3.8-flash-lite-tts">gemini-3.8-flash-lite-tts (سريع/اقتصادي)</option>
@@ -175,9 +193,6 @@ body:not([data-p=or]) select[data-v]{display:none}
     <div class="row" style="margin-top:8px">
       <div style="flex:1"><span class="lbl">أسلوب الإلقاء (style) — اختياري، مثلاً: هادئ ودافئ</span><input id="gstyle" style="width:100%" placeholder="اتركه فارغاً في الغالب"></div>
     </div>
-    <datalist id="gvoices">
-      <option value="Zephyr">Bright</option><option value="Puck">Upbeat</option><option value="Charon">Informative</option><option value="Kore">Firm</option><option value="Fenrir">Excitable</option><option value="Leda">Youthful</option><option value="Orus">Firm</option><option value="Aoede">Breezy</option><option value="Callirrhoe">Easy-going</option><option value="Autonoe">Bright</option><option value="Enceladus">Breathy</option><option value="Iapetus">Clear</option><option value="Umbriel">Easy-going</option><option value="Algieba">Smooth</option><option value="Despina">Smooth</option><option value="Erinome">Clear</option><option value="Algenib">Gravelly</option><option value="Rasalgethi">Informative</option><option value="Laomedeia">Upbeat</option><option value="Achernar">Soft</option><option value="Alnilam">Firm</option><option value="Schedar">Even</option><option value="Gacrux">Mature</option><option value="Pulcherrima">Forward</option><option value="Achird">Friendly</option><option value="Zubenelgenubi">Casual</option><option value="Vindemiatrix">Gentle</option><option value="Sadachbia">Lively</option><option value="Sadaltager">Knowledgeable</option><option value="Sulafat">Warm</option>
-    </datalist>
     <small>احصل على المفتاح من <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. يبقى في متصفحك ويُرسل إلى generativelanguage.googleapis.com فقط. الحصة المجانية محدودة بعدد الطلبات، فالموقع يعيد المحاولة تلقائياً عند الحد. الناتج WAV، ويدعم العربية تلقائياً.</small>
   </div>
 </div>
@@ -233,7 +248,7 @@ body:not([data-p=or]) select[data-v]{display:none}
     <input id="max" type="number" min="20" value="1500" style="width:110px">
     <button id="splitbtn">✂️ تقسيم</button>
   </div>
-  <small>يقسّم عند نهاية الجملة (. ! ؟ ؛ … وسطر جديد)، ثم الفواصل، ثم بين الكلمات، ولا تُقطع كلمة أبداً. يُنصح ألا يتجاوز الصندوق ≈4000 توكن تقريبي حتى لا يقترب من حد سياق النموذج (8K). في kie يُفضّل ألا يزيد الصندوق عن 5000 حرف (وأقل من دقيقة صوت للجودة الأفضل).</small>
+  <small>يقسّم عند نهاية الجملة (. ! ؟ ؛ … وسطر جديد)، ثم الفواصل، ثم بين الكلمات، ولا تُقطع كلمة أبداً. <span id="tokHint"></span></small>
 </div>
 
 <div class="card" id="ctrl" style="display:none">
@@ -262,7 +277,14 @@ const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;')
 const words=s=>(s.trim().match(/\S+/g)||[]).length,bytes=s=>enc.encode(s).length;
 const tokens=s=>{const a=(s.match(/[\u0600-\u06FF]/g)||[]).length;return Math.ceil(a/2.1+(s.length-a)/4)};
 const meas={chars:s=>s.length,words,bytes,tokens},fmt=n=>n.toLocaleString('en'),sleep=ms=>new Promise(r=>setTimeout(r,ms));
-const TOKEN_WARN=4000, CONCURRENCY=3, RETRY_DELAY=20000, STAGGER=650, POLL_MS=3000, POLL_MAX=120;
+// token guidance per provider: OpenRouter/kie keep the 4000 advice, Google allows up to 10000
+const TOKEN_WARN={or:4000,kie:4000,google:10000};
+const TOK_HINT={
+  or:'يُنصح ألا يتجاوز الصندوق ≈4000 توكن تقريبي حتى لا يقترب من حد سياق النموذج (8K).',
+  kie:'يُنصح ألا يتجاوز الصندوق ≈4000 توكن تقريبي حتى لا يقترب من حد سياق النموذج (8K). في kie يُفضّل ألا يزيد الصندوق عن 5000 حرف (وأقل من دقيقة صوت للجودة الأفضل).',
+  google:'يُنصح ألا يتجاوز الصندوق ≈10000 توكن تقريبي.'
+};
+const CONCURRENCY=3, RETRY_DELAY=20000, STAGGER=650, POLL_MS=3000, POLL_MAX=120;
 let chunks=[],stopReq=false,ctls=new Map();
 const P=()=>document.body.dataset.p;
 const curKey=()=>({kie:$('kkey'),google:$('gkey')}[P()]||$('key')).value.trim();
@@ -316,6 +338,7 @@ function setProvider(p,openBox){
   try{localStorage.setItem('prov',p)}catch(e){}
   if(openBox)$('keybox').style.display='block';
   keyState();showStats();prog();
+  $('tokHint').textContent=TOK_HINT[p]||TOK_HINT.or;chunks.forEach((_,i)=>cs(i));
 }
 $('pOR').onclick=()=>setProvider('or',true);
 $('pKie').onclick=()=>setProvider('kie',true);
@@ -331,7 +354,7 @@ try{
   const gk=localStorage.getItem('gkey');if(gk){$('gkey').value=gk;$('grem').checked=true}
   const kv=localStorage.getItem('kvoice');if(kv)$('kvoice').value=kv;
   const km=localStorage.getItem('kmodel');if(km)$('kmodel').value=km;
-  const gv=localStorage.getItem('gvoice');if(gv)$('gvoice').value=gv;
+  const gv=localStorage.getItem('gvoice');if(gv&&[...$('gvoice').options].some(o=>o.value===gv))$('gvoice').value=gv;
   const gm=localStorage.getItem('gmodel');if(gm&&[...$('gmodel').options].some(o=>o.value===gm))$('gmodel').value=gm;
   const gs=localStorage.getItem('gstyle');if(gs)$('gstyle').value=gs;
 }catch(e){}
@@ -620,7 +643,7 @@ function cs(i){
   const t=chunks[i].text,tk=tokens(t);
   const el=$('s'+i);
   el.textContent=`${fmt(t.length)} حرف · ${fmt(words(t))} كلمة · ≈${fmt(tk)} توكن · ${fmt(bytes(t))} بايت`;
-  if(tk>TOKEN_WARN)el.innerHTML+=' · <span class="warn">⚠ قريب من حد السياق، يُفضّل تقسيمه أصغر</span>';
+  if(tk>TOKEN_WARN[P()])el.innerHTML+=' · <span class="warn">⚠ قريب من حد السياق، يُفضّل تقسيمه أصغر</span>';
 }
 function prog(){
   const n=chunks.length,d=chunks.filter(c=>c.blob).length;
