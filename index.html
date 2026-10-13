@@ -48,10 +48,19 @@ audio{width:100%;margin-top:8px;height:40px;border-radius:99px;background:var(--
 a{color:var(--link);font-weight:700}
 small{color:var(--mut)}
 body,header,.card,input,select,textarea,.stat,audio{transition:background-color .35s,border-color .35s,color .35s}
-.tg{position:relative;display:flex;gap:2px;padding:3px;border-radius:99px;background:var(--paper);border:1.5px solid var(--sg)}
-.tg .knob{position:absolute;top:3px;left:3px;width:32px;height:32px;border-radius:50%;background:rgba(219,149,88,.35);border:1.5px solid rgba(219,149,88,.7);backdrop-filter:blur(2px);transition:transform .45s cubic-bezier(.65,0,.25,1),background .35s,border-color .35s;pointer-events:none}
-:root[data-theme=dark] .tg .knob{transform:translateX(34px);background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.4)}
-.tg button{position:relative;z-index:1;width:32px;height:32px;padding:0;background:none;color:inherit;border-radius:50%;font-size:17px;line-height:1;display:grid;place-items:center}
+.hdr{display:flex;align-items:center;gap:10px;min-width:0}
+.menubtn{flex:none;width:38px;height:38px;padding:0;border-radius:10px;font-size:20px;line-height:1;display:grid;place-items:center;background:transparent;border:1.5px solid var(--sg);color:var(--ink)}
+.drawerback{position:fixed;inset:0;background:rgba(20,20,10,.45);backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity .35s;z-index:59}
+.drawerback.show{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;left:0;right:0;height:50vh;background:var(--paper);border-bottom:2px solid var(--sg);box-shadow:0 10px 30px rgba(0,0,0,.25);display:flex;flex-direction:column;padding:12px 14px;z-index:60;transform:translateY(-102%);visibility:hidden;transition:transform .35s ease,visibility .35s}
+.drawer.show{transform:none;visibility:visible}
+.drawer-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.drawer-sec{margin-top:12px;min-height:0;flex:1;display:flex;flex-direction:column}
+.libList{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+.lib-item{background:var(--cream);border:1px solid var(--line);border-radius:10px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.lib-info{flex:1;min-width:160px}
+.lib-info b{display:block}
+.fname{width:150px}
 
 /* provider switch */
 .seg{display:flex;gap:2px;padding:3px;border-radius:99px;background:var(--paper);border:1.5px solid var(--sg)}
@@ -92,9 +101,19 @@ body:not([data-p=or]) select[data-v]{display:none}
 <body data-p="or">
 <div class="wrap">
 <header>
-  <h1>🎙️ مولد صوت</h1>
-  <div class="tg" dir="ltr"><span class="knob"></span><button id="lt" title="نهاري" aria-label="الوضع النهاري">☀️</button><button id="dk" title="ليلي" aria-label="الوضع الليلي">🌙</button></div>
+  <div class="hdr"><button class="menubtn" id="menuBtn" aria-label="القائمة" aria-expanded="false" aria-controls="drawer">☰</button><h1>🎙️ مولد صوت</h1></div>
 </header>
+<div class="drawerback" id="drawerBack"></div>
+<div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-label="القائمة">
+  <div class="drawer-head">
+    <div class="row"><button class="ghost mini" id="lt" aria-label="الوضع النهاري">☀️ نهاري</button><button class="ghost mini" id="dk" aria-label="الوضع الليلي">🌙 ليلي</button></div>
+    <button class="ghost mini" id="drawerClose" aria-label="إغلاق القائمة">✕</button>
+  </div>
+  <div class="drawer-sec">
+    <h2>أعمالي المحفوظة</h2>
+    <div class="libList" id="libList"></div>
+  </div>
+</div>
 
 <div class="apibar">
   <div class="seg" dir="ltr"><button id="pOR" class="act">OpenRouter</button><button id="pKie">kie</button><button id="pG">Google</button></div>
@@ -175,6 +194,18 @@ body:not([data-p=or]) select[data-v]{display:none}
   </div>
 </div>
 
+<div class="overlay" id="saveOverlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="saveTitle">
+    <h3 id="saveTitle">💾 حفظ العمل في المتصفح</h3>
+    <input id="wName" placeholder="اسم العمل" aria-label="اسم العمل">
+    <div class="row" style="justify-content:flex-end;flex-wrap:wrap">
+      <button class="ghost" id="wCancel" aria-label="إلغاء الحفظ">إلغاء</button>
+      <button class="sec" id="wNew" style="display:none" aria-label="حفظ كنسخة جديدة">حفظ كنسخة جديدة</button>
+      <button id="wSave">حفظ</button>
+    </div>
+  </div>
+</div>
+
 <div class="card">
   <h2><i>1</i>النص</h2>
   <div class="filebox" id="fileBox">
@@ -186,8 +217,11 @@ body:not([data-p=or]) select[data-v]{display:none}
   <textarea id="text" placeholder="الصق النص هنا..." style="margin-top:10px"></textarea>
   <div class="stats" id="stats"></div>
   <div class="row" style="margin-top:8px;justify-content:space-between">
-    <small id="savemsg"></small>
-    <button class="ghost mini" id="clearsave">🗑️ مسح الكل</button>
+    <small id="savemsg" aria-live="polite"></small>
+    <div class="row">
+      <button class="sec mini" id="savebtn" aria-label="حفظ العمل في المتصفح">💾 حفظ في المتصفح</button>
+      <button class="ghost mini" id="clearsave" aria-label="مسح كل شيء">🗑️ مسح الكل</button>
+    </div>
   </div>
 </div>
 
@@ -215,6 +249,7 @@ body:not([data-p=or]) select[data-v]{display:none}
     <div class="tag" id="prog"></div>
     <div class="tag" id="costest"></div>
   </div>
+  <div class="row" style="margin-top:8px"><span class="lbl" style="margin:0">اسم الملف المدمج</span><input id="mergeName" class="fname" value="merged" dir="ltr" aria-label="اسم الملف المدمج"></div>
   <div id="mergeout"></div>
 </div>
 
@@ -236,6 +271,33 @@ const curKey=()=>({kie:$('kkey'),google:$('gkey')}[P()]||$('key')).value.trim();
 function setTheme(t){document.documentElement.dataset.theme=t;try{localStorage.setItem('theme',t)}catch(e){}}
 $('lt').onclick=()=>setTheme('light');$('dk').onclick=()=>setTheme('dark');
 (()=>{let t=null;try{t=localStorage.getItem('theme')}catch(e){}setTheme(t||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'))})();
+
+// ---- drawer (hamburger menu) ----
+const drawer=$('drawer'),drawerBack=$('drawerBack'),menuBtn=$('menuBtn');
+function openDrawer(){
+  drawer.classList.add('show');drawerBack.classList.add('show');menuBtn.setAttribute('aria-expanded','true');
+  renderLibrary();$('drawerClose').focus();
+}
+function closeDrawer(){
+  if(!drawer.classList.contains('show'))return;
+  drawer.classList.remove('show');drawerBack.classList.remove('show');menuBtn.setAttribute('aria-expanded','false');menuBtn.focus();
+}
+menuBtn.onclick=()=>drawer.classList.contains('show')?closeDrawer():openDrawer();
+$('drawerClose').onclick=closeDrawer;
+drawerBack.onclick=closeDrawer;
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    if($('saveOverlay').classList.contains('show')){closeSaveModal();return}
+    closeDrawer();return;
+  }
+  if(e.key==='Tab'&&drawer.classList.contains('show')){
+    const f=[...drawer.querySelectorAll('button:not([disabled])')];
+    if(!f.length)return;
+    const first=f[0],last=f[f.length-1];
+    if(e.shiftKey&&(document.activeElement===first||!drawer.contains(document.activeElement))){e.preventDefault();last.focus()}
+    else if(!e.shiftKey&&(document.activeElement===last||!drawer.contains(document.activeElement))){e.preventDefault();first.focus()}
+  }
+});
 
 // ---- keys & provider ----
 function keyState(){
@@ -302,28 +364,166 @@ $('vSave').onclick=()=>{
   $('voiceOverlay').classList.remove('show');
 };
 
-// ---- autosave (text + chunk text/voice, never audio blobs) ----
-let saveTimer=null;
-function saveNow(){
-  try{
-    localStorage.setItem('savedText',$('text').value);
-    localStorage.setItem('savedChunks',JSON.stringify(chunks.map(c=>({text:c.text,voice:c.voice}))));
-    localStorage.setItem('savedMeta',JSON.stringify({mode:$('mode').value,max:$('max').value}));
-    $('savemsg').textContent='محفوظ تلقائياً في هذا المتصفح';
-  }catch(e){}
+// ---- unsaved-changes tracking ----
+let dirty=false,currentWorkId=null,currentWorkName='',mergeUrl=null,persistAsked=false,saveBusy=false;
+function markDirty(){dirty=true;$('savemsg').textContent='تغييرات غير محفوظة (اضغط 💾 حفظ في المتصفح)'}
+
+// ---- IndexedDB (saved works) ----
+const DB_NAME='voicegen-db',STORE='works';
+let dbPromise=null;
+function openDB(){
+  if(dbPromise)return dbPromise;
+  dbPromise=new Promise((ok,no)=>{
+    if(!('indexedDB' in window)){const e=new Error('no indexedDB');e.name='NoIDB';return no(e)}
+    const req=indexedDB.open(DB_NAME,1);
+    req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains(STORE))req.result.createObjectStore(STORE,{keyPath:'id'})};
+    req.onsuccess=()=>ok(req.result);
+    req.onerror=()=>{dbPromise=null;no(req.error)};
+    req.onblocked=()=>{dbPromise=null;no(new Error('قاعدة البيانات مقفلة في نافذة أخرى'))};
+  });
+  return dbPromise;
 }
-function saveSoon(){clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,600)}
+async function tx(mode,fn){
+  const db=await openDB();
+  return new Promise((ok,no)=>{
+    const t=db.transaction(STORE,mode);let req;
+    t.oncomplete=()=>ok(req?req.result:undefined);
+    t.onerror=()=>no(t.error);t.onabort=()=>no(t.error||new Error('aborted'));
+    try{req=fn(t.objectStore(STORE))}catch(e){try{t.abort()}catch(_){}no(e)}
+  });
+}
+const dbPut=w=>tx('readwrite',s=>s.put(w));
+const dbGet=id=>tx('readonly',s=>s.get(id));
+const dbGetAll=()=>tx('readonly',s=>s.getAll());
+const dbDelete=id=>tx('readwrite',s=>s.delete(id));
+function dbMsg(e){
+  if(!e)return 'خطأ غير معروف';
+  if(e.name==='NoIDB')return 'هذا المتصفح لا يدعم حفظ الأعمال (IndexedDB)';
+  if(e.name==='QuotaExceededError')return 'مساحة التخزين في المتصفح ممتلئة. احذف بعض الأعمال المحفوظة ثم أعد المحاولة';
+  if(e.name==='InvalidStateError'||e.name==='SecurityError')return 'التخزين في المتصفح معطّل أو محجوب (وضع خاص أو إعدادات الخصوصية)';
+  return 'تعذّر الوصول إلى التخزين في المتصفح: '+(e.message||e.name);
+}
+function askPersist(){
+  if(persistAsked)return;persistAsked=true;
+  try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist().catch(()=>{})}catch(e){}
+}
+
+// ---- blob URL cleanup ----
+function releaseUrls(){
+  chunks.forEach(c=>{if(c.url){URL.revokeObjectURL(c.url);c.url=null}});
+  if(mergeUrl){URL.revokeObjectURL(mergeUrl);mergeUrl=null}
+}
+
+// ---- save / update / restore / delete ----
+function defaultWorkName(){
+  const w=$('text').value.trim().split(/\s+/).slice(0,6).join(' ').slice(0,60)||'عمل بدون نص';
+  return `${w} · ${new Date().toLocaleString('ar',{dateStyle:'short',timeStyle:'short'})}`;
+}
+function openSaveModal(){
+  if(!$('text').value.trim()&&!chunks.length)return alert('لا يوجد نص أو مقاطع لحفظها');
+  $('wName').value=currentWorkId?currentWorkName:defaultWorkName();
+  $('wSave').textContent=currentWorkId?'تحديث نفس العمل':'حفظ';
+  $('wNew').style.display=currentWorkId?'':'none';
+  $('saveOverlay').classList.add('show');$('wName').focus();$('wName').select();
+}
+function closeSaveModal(){$('saveOverlay').classList.remove('show')}
+$('savebtn').onclick=openSaveModal;
+$('wCancel').onclick=closeSaveModal;
+$('saveOverlay').onclick=e=>{if(e.target.id==='saveOverlay')closeSaveModal()};
+$('wSave').onclick=()=>saveWork(currentWorkId?'update':'create');
+$('wNew').onclick=()=>saveWork('new');
+async function saveWork(kind){
+  if(saveBusy)return;saveBusy=true;
+  const name=$('wName').value.trim()||defaultWorkName();
+  try{
+    const now=Date.now();
+    const prev=(kind==='update'&&currentWorkId)?await dbGet(currentWorkId):null;
+    const id=prev?prev.id:((self.crypto&&crypto.randomUUID)?crypto.randomUUID():'w'+now+'-'+Math.random().toString(36).slice(2,8));
+    const work={
+      id,name,createdAt:prev?prev.createdAt:now,updatedAt:now,
+      text:$('text').value,mode:$('mode').value,max:$('max').value,
+      mergedName:$('mergeName').value,globalVoice:$('voiceSelect').value,
+      chunks:chunks.map(c=>({text:c.text,voice:c.voice||'',name:c.name||'',ext:c.ext||'mp3',blob:c.blob||null}))
+    };
+    askPersist();
+    await dbPut(work);
+    currentWorkId=id;currentWorkName=name;dirty=false;
+    closeSaveModal();
+    const n=chunks.filter(c=>c.blob).length;
+    $('savemsg').textContent='تم الحفظ في المتصفح ✓ '+(n?'(النص + الصوت)':'(النص)');
+  }catch(e){alert(dbMsg(e))}
+  finally{saveBusy=false}
+}
+async function restoreWork(id){
+  let w;try{w=await dbGet(id)}catch(e){return alert(dbMsg(e))}
+  if(!w)return alert('هذا العمل لم يعد موجوداً');
+  if(dirty&&!confirm('توجد تغييرات غير محفوظة في مساحة العمل الحالية. الاسترجاع سيستبدلها. متابعة؟'))return;
+  ctls.forEach(c=>c.abort());ctls.clear();stopReq=true;
+  releaseUrls();
+  $('text').value=w.text||'';
+  $('mode').value=w.mode||'chars';
+  $('max').value=w.max||1500;
+  $('mergeName').value=w.mergedName||'merged';
+  if([...$('voiceSelect').options].some(o=>o.value===w.globalVoice))$('voiceSelect').value=w.globalVoice;
+  chunks=(w.chunks||[]).map(c=>{
+    const o={text:c.text||'',voice:c.voice||'',name:c.name||'',ext:c.ext||'mp3',blob:c.blob||null};
+    if(o.blob)o.url=URL.createObjectURL(o.blob);
+    return o;
+  });
+  currentWorkId=w.id;currentWorkName=w.name;dirty=false;
+  $('filename').textContent='عمل محفوظ: '+w.name;
+  $('file').value='';
+  render();showStats();syncFileBox();
+  $('savemsg').textContent='تم استرجاع «'+w.name+'»';
+  closeDrawer();
+  (chunks.length?$('chunks'):$('text')).scrollIntoView({behavior:'smooth'});
+}
+async function renderLibrary(){
+  const box=$('libList');
+  let list;
+  try{list=await dbGetAll()}catch(e){box.innerHTML=`<small>${esc(dbMsg(e))}</small>`;return}
+  list.sort((a,b)=>b.createdAt-a.createdAt);
+  if(!list.length){box.innerHTML='<small>لا توجد أعمال محفوظة</small>';return}
+  box.innerHTML=list.map(w=>{
+    const cs_=w.chunks||[],gen=cs_.filter(c=>c.blob).length;
+    const when=new Date(w.createdAt).toLocaleString('ar',{dateStyle:'medium',timeStyle:'short'});
+    return `<div class="lib-item"><div class="lib-info"><b>${esc(w.name)}</b><small>${esc(when)} · ${fmt(cs_.length)} مقطع · ${fmt(gen)} مولّد صوتاً</small></div>`+
+      `<div class="row"><button class="mini" data-restore="${esc(w.id)}" aria-label="استرجاع ${esc(w.name)}">↩ استرجاع</button>`+
+      `<button class="ghost mini" data-del="${esc(w.id)}" aria-label="حذف ${esc(w.name)}">🗑 حذف</button></div></div>`;
+  }).join('');
+}
+$('libList').addEventListener('click',async e=>{
+  const r=e.target.closest('[data-restore]'),d=e.target.closest('[data-del]');
+  if(r)return restoreWork(r.dataset.restore);
+  if(d){
+    const id=d.dataset.del;
+    let w;try{w=await dbGet(id)}catch(err){return alert(dbMsg(err))}
+    if(!w)return renderLibrary();
+    if(!confirm(`سيُحذف للأبد: «${w.name}». هل أنت متأكد؟`))return;
+    try{await dbDelete(id)}catch(err){return alert(dbMsg(err))}
+    if(currentWorkId===id){currentWorkId=null;currentWorkName=''}
+    renderLibrary();
+  }
+});
+$('voiceSelect').addEventListener('change',markDirty);
+$('mergeName').addEventListener('input',()=>{
+  markDirty();
+  const a=document.querySelector('#mergeout a[data-ext]');
+  if(a)a.download=(cleanName($('mergeName').value)||'merged')+'.'+a.dataset.ext;
+});
 
 // show the upload box only when there's no text yet
 function syncFileBox(){$('fileBox').style.display=$('text').value.trim()?'none':'flex'}
 
 $('clearsave').onclick=()=>{
-  try{localStorage.removeItem('savedText');localStorage.removeItem('savedChunks');localStorage.removeItem('savedMeta')}catch(e){}
+  if(dirty&&!confirm('سيتم مسح كل شيء، بما فيه التغييرات غير المحفوظة. متابعة؟'))return;
   ctls.forEach(c=>c.abort());ctls.clear();stopReq=true;
+  releaseUrls();
   $('text').value='';
   $('file').value='';
   $('filename').textContent='لم يُختر ملف — أو الصق النص مباشرة بالأسفل';
-  chunks=[];
+  chunks=[];currentWorkId=null;currentWorkName='';dirty=false;
+  $('mergeName').value='merged';
   render();showStats();syncFileBox();
   $('savemsg').textContent='تم مسح كل شيء، رجع الموقع لوضعه الأول';
 };
@@ -335,16 +535,10 @@ function showStats(){
   if(P()==='or')rows.push(['تكلفة Fish المدفوع $',(b/1e6*15).toFixed(3)]);
   $('stats').innerHTML=rows.map(([l,v])=>`<div class="stat"><b>${typeof v=='number'?fmt(v):v}</b><span>${l}</span></div>`).join('');
 }
-$('text').oninput=()=>{showStats();saveSoon();syncFileBox()};
+$('text').oninput=()=>{showStats();markDirty();syncFileBox()};
 
-// restore autosave on load
+// the page always starts empty (no autosave); only the provider choice is remembered
 (()=>{
-  try{
-    const t=localStorage.getItem('savedText'),cj=localStorage.getItem('savedChunks'),meta=localStorage.getItem('savedMeta');
-    if(t){$('text').value=t;$('savemsg').textContent='تمت استعادة نص محفوظ من متصفحك'}
-    if(meta){const mm=JSON.parse(meta);if(mm.mode)$('mode').value=mm.mode;if(mm.max)$('max').value=mm.max}
-    if(cj){const arr=JSON.parse(cj);if(arr&&arr.length){chunks=arr.map(c=>({text:c.text,voice:c.voice||''}));render()}}
-  }catch(e){}
   syncFileBox();
   let p='or';try{p=localStorage.getItem('prov')||'or'}catch(e){}
   setProvider(['kie','google'].includes(p)?p:'or',false);
@@ -359,7 +553,7 @@ $('file').onchange=async e=>{
       if(!window.mammoth)await new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js';s.onload=ok;s.onerror=()=>no(new Error('تعذر تحميل قارئ docx (يحتاج إنترنت)'));document.head.appendChild(s)});
       $('text').value=(await mammoth.extractRawText({arrayBuffer:await f.arrayBuffer()})).value;
     }else{let t=await f.text();if(/\.html?$/i.test(f.name))t=new DOMParser().parseFromString(t,'text/html').body.textContent;$('text').value=t}
-    showStats();saveSoon();syncFileBox();
+    showStats();markDirty();syncFileBox();
   }catch(err){$('filename').textContent='تعذّرت القراءة';alert(err.message)}
 };
 
@@ -382,15 +576,28 @@ function smartSplit(text,m,max){
 }
 $('splitbtn').onclick=()=>{
   const t=$('text').value.trim();if(!t)return alert('لا يوجد نص');
-  chunks=smartSplit(t,meas[$('mode').value],Math.max(20,+$('max').value||1500)).map(text=>({text,voice:''}));
-  render();saveNow();$('ctrl').scrollIntoView({behavior:'smooth'});
+  releaseUrls();
+  chunks=smartSplit(t,meas[$('mode').value],Math.max(20,+$('max').value||1500)).map((text,i)=>({text,voice:'',name:defName(i)}));
+  render();markDirty();$('ctrl').scrollIntoView({behavior:'smooth'});
 };
 
 // ---- render ----
 const ext=c=>c.ext||'mp3';
-const fname=(i,c)=>`part-${String(i+1).padStart(3,'0')}.${ext(c)}`;
-const audioHtml=(i,c)=>`<audio controls src="${c.url}"></audio><a href="${c.url}" download="${fname(i,c)}">تحميل</a>`;
+const pad3=n=>String(n).padStart(3,'0');
+const defName=i=>`part-${pad3(i+1)}`;
+// strip forbidden filename chars and a typed extension; the real extension is added separately
+const cleanName=s=>(s||'').replace(/[\\/:*?"<>|\x00-\x1f]/g,'').replace(/\.(mp3|wav|pcm|ogg|m4a|aac|flac)$/i,'').replace(/[. ]+$/,'').trim();
+const fname=(i,c)=>`${cleanName(c.name)||defName(i)}.${ext(c)}`;
+// makes "a.mp3" -> "a-2.mp3" when the same name already exists in the ZIP
+function uniqueName(name,used){
+  if(!used.has(name)){used.add(name);return name}
+  const d=name.lastIndexOf('.'),base=d>0?name.slice(0,d):name,e=d>0?name.slice(d):'';
+  let k=2;while(used.has(`${base}-${k}${e}`))k++;
+  const n=`${base}-${k}${e}`;used.add(n);return n;
+}
+const audioHtml=(i,c)=>`<audio controls src="${c.url}"></audio><a href="${c.url}" download="${esc(fname(i,c))}">تحميل</a>`;
 function render(){
+  if(mergeUrl){URL.revokeObjectURL(mergeUrl);mergeUrl=null}
   $('chunks').innerHTML='';
   chunks.forEach((c,i)=>{
     const d=document.createElement('div');d.className='card chunk';d.id='c'+i;
@@ -399,6 +606,7 @@ function render(){
       <button data-g="${i}">🔊 توليد صوت</button>
       <button class="ghost mini" data-c="${i}" style="display:none">✕ إلغاء</button></span></div>
       <textarea data-t="${i}">${esc(c.text)}</textarea>
+      <div class="row" style="margin-top:4px"><span class="lbl" style="margin:0">اسم الملف</span><input class="fname" data-n="${i}" dir="ltr" value="${esc(c.name||defName(i))}" aria-label="اسم ملف المقطع ${i+1}"></div>
       <div class="tag" id="s${i}"></div><div class="tag" id="m${i}"></div><div id="a${i}"></div>`;
     $('chunks').appendChild(d);cs(i);
     if(c.blob){$('c'+i).classList.add('done');$('m'+i).className='tag ok';$('m'+i).textContent='تم ✓';
@@ -424,11 +632,18 @@ function prog(){
 $('chunks').addEventListener('input',e=>{
   if(e.target.dataset.t!==undefined){
     const i=+e.target.dataset.t,c=chunks[i];c.text=e.target.value;c.blob=null;
-    $('a'+i).innerHTML='';$('c'+i).classList.remove('done','err');cs(i);prog();saveSoon();
+    if(c.url){URL.revokeObjectURL(c.url);c.url=null}
+    $('a'+i).innerHTML='';$('c'+i).classList.remove('done','err');$('m'+i).textContent='';cs(i);prog();markDirty();
   }
 });
 $('chunks').addEventListener('change',e=>{
-  if(e.target.dataset.v!==undefined){chunks[+e.target.dataset.v].voice=e.target.value;saveSoon()}
+  if(e.target.dataset.v!==undefined){chunks[+e.target.dataset.v].voice=e.target.value;markDirty()}
+  if(e.target.dataset.n!==undefined){
+    const i=+e.target.dataset.n,c=chunks[i];
+    c.name=cleanName(e.target.value)||defName(i);e.target.value=c.name;
+    if(c.url)$('a'+i).innerHTML=audioHtml(i,c);
+    markDirty();
+  }
 });
 $('chunks').addEventListener('click',e=>{
   if(e.target.dataset.g!==undefined){stopReq=false;gen(+e.target.dataset.g)}
@@ -553,7 +768,7 @@ async function gen(i,tries=0){
     c.blob=blob;if(c.url)URL.revokeObjectURL(c.url);c.url=URL.createObjectURL(c.blob);
     $('a'+i).innerHTML=audioHtml(i,c);
     m.className='tag ok';m.textContent='تم ✓';$('c'+i).classList.add('done');$('c'+i).classList.remove('err');
-    btn.disabled=false;cancel.style.display='none';ctls.delete(i);prog();saveNow();return true;
+    btn.disabled=false;cancel.style.display='none';ctls.delete(i);prog();markDirty();return true;
   }catch(err){
     if(err&&err.status===429&&tries<3&&!stopReq){
       m.textContent='حد الطلبات... إعادة المحاولة خلال 20 ثانية';
@@ -594,7 +809,10 @@ $('mergebtn').onclick=async()=>{
   try{blob=e==='wav'?await mergeWavs(r.map(c=>c.blob)):new Blob(r.map(c=>c.blob),{type:r[0].blob.type||'audio/mpeg'})}
   catch(err){return alert('تعذّر الدمج: '+err.message)}
   const url=URL.createObjectURL(blob);
-  $('mergeout').innerHTML=`<p class="tag">دُمج ${r.length} من ${chunks.length} مقطع</p><audio controls src="${url}"></audio><a href="${url}" download="merged.${e}">تحميل الملف المدمج</a>`;
+  if(mergeUrl)URL.revokeObjectURL(mergeUrl);
+  mergeUrl=url;
+  const base=cleanName($('mergeName').value)||'merged';
+  $('mergeout').innerHTML=`<p class="tag">دُمج ${r.length} من ${chunks.length} مقطع</p><audio controls src="${url}"></audio><a href="${url}" data-ext="${e}" download="${esc(base)}.${e}">تحميل الملف المدمج</a>`;
 };
 
 // ---- ZIP (store, no compression) ----
@@ -614,14 +832,16 @@ function zip(files){
   return new Blob([...parts,...cen,pack([0x06054b50,4],[0,2],[0,2],[files.length,2],[files.length,2],[cs,4],[off,4],[0,2])],{type:'application/zip'});
 }
 $('zipbtn').onclick=async()=>{
-  const files=[];
-  for(let i=0;i<chunks.length;i++)if(chunks[i].blob)files.push({name:fname(i,chunks[i]),data:new Uint8Array(await chunks[i].blob.arrayBuffer())});
+  const files=[],used=new Set();
+  for(let i=0;i<chunks.length;i++)if(chunks[i].blob)files.push({name:uniqueName(fname(i,chunks[i]),used),data:new Uint8Array(await chunks[i].blob.arrayBuffer())});
   if(!files.length)return alert('لا توجد أصوات مولّدة للتصدير');
-  const a=document.createElement('a');a.href=URL.createObjectURL(zip(files));a.download='audio-parts.zip';a.click();
+  const u=URL.createObjectURL(zip(files));
+  const a=document.createElement('a');a.href=u;a.download='audio-parts.zip';a.click();
+  setTimeout(()=>URL.revokeObjectURL(u),60000);
 };
 
-// ---- warn before leaving while generating ----
-window.addEventListener('beforeunload',e=>{if(ctls.size){e.preventDefault();e.returnValue=''}});
+// ---- warn before leaving while generating or with unsaved changes ----
+window.addEventListener('beforeunload',e=>{if(ctls.size||dirty){e.preventDefault();e.returnValue=''}});
 </script>
 </body>
 </html>
