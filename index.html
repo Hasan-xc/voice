@@ -61,8 +61,10 @@ body,header,.card,input,select,textarea,.stat,audio{transition:background-color 
 .lib-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .lib-top b{font-size:14px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lib-top small{white-space:nowrap;font-size:11.5px}
-.lib-item>small{font-size:12px;line-height:1.4}
-.lib-btns{margin-top:4px;justify-content:flex-end;gap:6px}
+.lib-bot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:4px}
+.lib-stats{display:flex;flex-direction:column;gap:6px;min-width:0}
+.lib-stats small{font-size:12px;line-height:1.4}
+.lib-btns{flex:none;flex-wrap:nowrap;gap:6px}
 .lib-btns button{padding:3px 9px;font-size:12.5px}
 .fname{width:150px}
 
@@ -515,10 +517,10 @@ async function renderLibrary(){
     const cs_=w.chunks||[],gen=cs_.filter(c=>c.blob).length;
     const when=new Date(w.createdAt).toLocaleString('ar',{dateStyle:'medium',timeStyle:'short'});
     return `<div class="lib-item"><div class="lib-top"><b>${esc(w.name)}</b><small>${esc(when)}</small></div>`+
-      `<small>${fmt(words(w.text||''))} كلمة</small>`+
-      `<small>${fmt(cs_.length)} مقطع · ${fmt(gen)} مولّد صوتاً</small>`+
+      `<div class="lib-bot"><div class="lib-stats"><small>${fmt(words(w.text||''))} كلمة</small>`+
+      `<small>${fmt(gen)} صوت مولد من ${fmt(cs_.length)} مقطع</small></div>`+
       `<div class="row lib-btns"><button class="mini" data-restore="${esc(w.id)}" aria-label="استرجاع ${esc(w.name)}">↩ استرجاع</button>`+
-      `<button class="ghost mini" data-del="${esc(w.id)}" aria-label="حذف ${esc(w.name)}">🗑 حذف</button></div></div>`;
+      `<button class="ghost mini" data-del="${esc(w.id)}" aria-label="حذف ${esc(w.name)}">🗑 حذف</button></div></div></div>`;
   }).join('');
 }
 $('libList').addEventListener('click',async e=>{
