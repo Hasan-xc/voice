@@ -126,6 +126,23 @@ body:not([data-p=or]) select[data-v]{display:none}
 .fs-ta-wrap{position:relative;flex:1;display:flex;flex-direction:column;min-height:0}
 .fs-ta-wrap textarea{flex:1;width:100%;height:100%;resize:none;font-size:16px;line-height:1.95;padding:14px 14px 14px 44px;border-radius:14px;background:var(--paper);border:2px solid var(--ol)}
 
+/* input tabs & dropzone */
+.in-tabs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.in-tab{background:linear-gradient(180deg,var(--paper),var(--cream));border:1.5px solid var(--sg);color:var(--ink);text-shadow:none;border-radius:12px;padding:10px 14px;font-size:14.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;box-shadow:0 3px 0 var(--sg),inset 0 1px 0 rgba(255,255,255,.15);transition:filter .15s,transform .08s,box-shadow .08s,background .2s,color .2s}
+.in-tab:hover{filter:brightness(1.05)}
+.in-tab:active{transform:translateY(2px);box-shadow:0 1px 0 var(--sg)}
+.in-tab.act{background:linear-gradient(180deg,var(--or),#c9803f);border-color:#9e5f27;color:#fff;text-shadow:0 1px 1px rgba(0,0,0,.18);box-shadow:0 3px 0 #9e5f27,inset 0 1px 0 rgba(255,255,255,.32)}
+.in-tab.act:active{transform:translateY(2px);box-shadow:0 1px 0 #9e5f27}
+.dropzone{border:2px dashed var(--sg);border-radius:16px;padding:34px 16px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;cursor:pointer;background:var(--cream);transition:border-color .2s,background-color .2s,transform .1s;user-select:none}
+.dropzone:hover,.dropzone.drag{border-color:var(--or);background:rgba(219,149,88,.08)}
+.dropzone svg{width:54px;height:54px;color:var(--or);margin-bottom:10px;opacity:.9}
+.dropzone .dz-title{font-weight:800;font-size:15.5px;color:var(--ink);margin-bottom:4px}
+.dropzone .dz-sub{font-size:13px;color:var(--mut);opacity:.75;direction:ltr}
+.text-actions{display:none;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:10px}
+.text-actions.show{display:flex}
+.text-actions button{white-space:nowrap}
+.text-actions #savemsg{flex:1;min-width:130px}
+
 /* voice select row */
 .vrow{display:flex;gap:6px;align-items:center;flex:1;min-width:180px}
 .vrow select{flex:1}
@@ -263,28 +280,41 @@ body:not([data-p=or]) select[data-v]{display:none}
 </div>
 
 <div class="card">
-  <h2><i>1</i>النص</h2>
-  <div class="filebox" id="fileBox">
-    <label class="filebtn" for="file">📁 اختيار ملف</label>
+  <h2><i>1</i>إدخال النص أو الملف</h2>
+
+  <div class="in-tabs">
+    <button type="button" class="in-tab act" id="tabUpload">📁 رفع ملف</button>
+    <button type="button" class="in-tab" id="tabPaste">📋 لصق النص</button>
+  </div>
+
+  <div id="uploadPane">
+    <label class="dropzone" id="dropzone" for="file">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/><path d="M12 13v8"/><path d="m9 16 3-3 3 3"/></svg>
+      <div class="dz-title" id="dzTitle">اسحب الملف هنا أو اضغط لرفعه</div>
+      <div class="dz-sub">(docx / txt / md / srt / html)</div>
+      <span id="filename" class="tag" style="display:none;margin-top:8px;color:var(--ok);font-weight:700"></span>
+    </label>
     <input type="file" id="file" class="visually-hidden" accept=".txt,.md,.docx,.html,.htm,.srt,.json,.csv,text/*">
-    <span id="filename" class="tag">لم يُختر ملف — أو الصق النص مباشرة بالأسفل</span>
-    <small style="width:100%">txt / md / docx / html / srt</small>
   </div>
-  <div class="ta-wrap" style="margin-top:10px">
-    <button type="button" class="cp-icon" id="pasteIconBtn" title="لصق النص من الحافظة" aria-label="لصق النص من الحافظة">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
-    </button>
-    <textarea id="text" readonly placeholder="اضغط على أيقونة اللصق باليسار للصق السريع، أو اضغط مرتين هنا لفتح المحرر بملء الشاشة والكتابة..."></textarea>
+
+  <div id="pastePane" style="display:none">
+    <div class="ta-wrap">
+      <button type="button" class="cp-icon" id="pasteIconBtn" title="لصق النص من الحافظة" aria-label="لصق النص من الحافظة">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
+      </button>
+      <textarea id="text" readonly placeholder="اضغط على أيقونة اللصق باليسار للصق السريع، أو اضغط مرتين هنا لفتح المحرر بملء الشاشة والكتابة..."></textarea>
+    </div>
+    <small style="display:block;margin-top:4px;text-align:left;font-size:11.5px;opacity:.75">💡 اضغط مرتين داخل المربع لفتحه بملء الشاشة والكتابة</small>
   </div>
-  <small style="display:block;margin-top:5px;font-size:11.5px;opacity:.75">💡 اضغط مرتين داخل المربع لفتحه بملء الشاشة والكتابة</small>
-  <div class="stats" id="stats"></div>
-  <div class="row" style="margin-top:8px;justify-content:space-between">
+
+  <div class="text-actions" id="textActions">
     <small id="savemsg" aria-live="polite"></small>
-    <div class="row">
+    <div class="row" style="flex-wrap:nowrap;gap:8px">
       <button class="sec mini" id="savebtn" aria-label="حفظ العمل في المتصفح">💾 حفظ في المتصفح</button>
       <button class="ghost mini" id="clearsave" aria-label="مسح كل شيء">🗑️ مسح الكل</button>
     </div>
   </div>
+  <div class="stats" id="stats"></div>
 </div>
 
 <div class="card">
@@ -559,8 +589,8 @@ async function restoreWork(id){
     return o;
   });
   currentWorkId=w.id;currentWorkName=w.name;dirty=false;
-  $('filename').textContent='عمل محفوظ: '+w.name;
   $('file').value='';
+  if($('text').value.trim())setInputTab('paste');
   render();showStats();syncFileBox();
   $('savemsg').textContent='تم استرجاع «'+w.name+'»';
   closeDrawer();
@@ -602,8 +632,18 @@ $('mergeName').addEventListener('input',()=>{
   if(a)a.download=(cleanName($('mergeName').value)||'merged')+'.'+a.dataset.ext;
 });
 
-// show the upload box only when there's no text yet
-function syncFileBox(){$('fileBox').style.display=$('text').value.trim()?'none':'flex'}
+// ---- input tabs ----
+function setInputTab(mode){
+  $('tabUpload').classList.toggle('act',mode==='upload');
+  $('tabPaste').classList.toggle('act',mode==='paste');
+  $('uploadPane').style.display=mode==='upload'?'block':'none';
+  $('pastePane').style.display=mode==='paste'?'block':'none';
+}
+$('tabUpload').onclick=()=>setInputTab('upload');
+$('tabPaste').onclick=()=>setInputTab('paste');
+
+// show save/clear actions only when there is text
+function syncFileBox(){$('textActions').classList.toggle('show',$('text').value.trim().length>0)}
 
 $('clearsave').onclick=()=>{
   if(dirty&&!confirm('سيتم مسح كل شيء، بما فيه التغييرات غير المحفوظة. متابعة؟'))return;
@@ -611,9 +651,11 @@ $('clearsave').onclick=()=>{
   releaseUrls();
   $('text').value='';
   $('file').value='';
-  $('filename').textContent='لم يُختر ملف — أو الصق النص مباشرة بالأسفل';
+  $('filename').textContent='';$('filename').style.display='none';
+  $('dzTitle').textContent='اسحب الملف هنا أو اضغط لرفعه';
   chunks=[];currentWorkId=null;currentWorkName='';dirty=false;
   $('mergeName').value='merged';
+  setInputTab('upload');
   render();showStats();syncFileBox();
   $('savemsg').textContent='تم مسح كل شيء، رجع الموقع لوضعه الأول';
 };
@@ -634,18 +676,33 @@ $('text').oninput=()=>{showStats();markDirty();syncFileBox()};
   setProvider(['kie','google'].includes(p)?p:'or',false);
 })();
 
-// ---- file ----
-$('file').onchange=async e=>{
-  const f=e.target.files[0];if(!f)return;
-  $('filename').textContent='جارٍ القراءة: '+f.name;
+// ---- file upload & drag-and-drop ----
+async function handleFile(f){
+  if(!f)return;
+  $('filename').style.display='block';
+  $('filename').textContent='⏳ جارٍ القراءة: '+f.name;
   try{
+    let t='';
     if(/\.docx$/i.test(f.name)){
       if(!window.mammoth)await new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js';s.onload=ok;s.onerror=()=>no(new Error('تعذر تحميل قارئ docx (يحتاج إنترنت)'));document.head.appendChild(s)});
-      $('text').value=(await mammoth.extractRawText({arrayBuffer:await f.arrayBuffer()})).value;
-    }else{let t=await f.text();if(/\.html?$/i.test(f.name))t=new DOMParser().parseFromString(t,'text/html').body.textContent;$('text').value=t}
+      t=(await mammoth.extractRawText({arrayBuffer:await f.arrayBuffer()})).value;
+    }else{
+      t=await f.text();
+      if(/\.html?$/i.test(f.name))t=new DOMParser().parseFromString(t,'text/html').body.textContent;
+      if(/\.srt$/i.test(f.name))t=t.replace(/^\d+\s*$/gm,'').replace(/\d{2}:\d{2}:\d{2}[,.]\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}[,.]\d{3}/g,'').replace(/\n{2,}/g,'\n').trim();
+    }
+    $('text').value=t;
+    $('filename').textContent='✓ تم رفع: '+f.name;
+    $('dzTitle').textContent='✓ تم رفع الملف — اضغط للاستبدال';
+    setInputTab('paste');
     showStats();markDirty();syncFileBox();
   }catch(err){$('filename').textContent='تعذّرت القراءة';alert(err.message)}
-};
+}
+$('file').onchange=e=>handleFile(e.target.files[0]);
+const dz=$('dropzone');
+['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('drag')}));
+['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('drag')}));
+dz.addEventListener('drop',e=>{const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];if(f)handleFile(f)});
 
 // ---- paste & fullscreen text editor ----
 function flashCopyIcon(btn){if(!btn)return;btn.classList.add('copied');setTimeout(()=>btn.classList.remove('copied'),1400)}
