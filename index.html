@@ -241,6 +241,14 @@ body:not([data-p=or]) select[data-v]{display:none}
           <option value="Sulafat">Sulafat — صوت دافئ</option>
         </select>
       </div>
+      <div style="flex:1;min-width:130px"><span class="lbl">التأخير بين الطلبات</span>
+        <select id="gdelay" style="width:100%" aria-label="التأخير بين الطلبات عند توليد الكل">
+          <option value="1" selected>دقيقة واحدة</option>
+          <option value="2">دقيقتان</option>
+          <option value="3">3 دقائق</option>
+          <option value="5">5 دقائق</option>
+        </select>
+      </div>
       <div style="flex:2;min-width:200px"><span class="lbl">الموديل</span>
         <select id="gmodel" style="width:100%" dir="ltr">
           <option value="gemini-3.8-flash-lite-tts">gemini-3.8-flash-lite-tts (سريع/اقتصادي)</option>
@@ -251,7 +259,7 @@ body:not([data-p=or]) select[data-v]{display:none}
     <div class="row" style="margin-top:8px">
       <div style="flex:1"><span class="lbl">أسلوب الإلقاء (style) — اختياري، مثلاً: هادئ ودافئ</span><input id="gstyle" style="width:100%" placeholder="اتركه فارغاً في الغالب"></div>
     </div>
-    <small>احصل على المفتاح من <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. يبقى في متصفحك ويُرسل إلى generativelanguage.googleapis.com فقط. الحصة المجانية محدودة بعدد الطلبات، فالموقع يعيد المحاولة تلقائياً عند الحد. الناتج WAV، ويدعم العربية تلقائياً.</small>
+    <small>احصل على المفتاح من <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. يبقى في متصفحك ويُرسل إلى generativelanguage.googleapis.com فقط. الحصة المجانية محدودة بعدد الطلبات. يتم إرسال طلب واحد لكل صندوق ثم انتظار الرد؛ وأثناء «توليد الكل» يُطبَّق فاصل زمني من قائمة «التأخير بين الطلبات» قبل كل طلب. إن أرجع Google خطأ فسيظهر كما هو. الناتج WAV ويدعم العربية تلقائياً.</small>
   </div>
 </div>
 
@@ -378,7 +386,7 @@ const TOK_HINT={
   kie:'يُنصح ألا يتجاوز الصندوق ≈4000 توكن تقريبي حتى لا يقترب من حد سياق النموذج (8K). في kie يُفضّل ألا يزيد الصندوق عن 5000 حرف (وأقل من دقيقة صوت للجودة الأفضل).',
   google:'يُنصح ألا يتجاوز الصندوق ≈10000 توكن تقريبي.'
 };
-const CONCURRENCY=3, RETRY_DELAY=20000, STAGGER=650, POLL_MS=3000, POLL_MAX=120, GOOGLE_TRIES=3, BLOCK_DELAY=1800;
+const CONCURRENCY=3, RETRY_DELAY=20000, STAGGER=650, POLL_MS=3000, POLL_MAX=120;
 let chunks=[],stopReq=false,ctls=new Map();
 const P=()=>document.body.dataset.p;
 const curKey=()=>({kie:$('kkey'),google:$('gkey')}[P()]||$('key')).value.trim();
@@ -424,7 +432,7 @@ function keyState(){
     if($('krem').checked)localStorage.setItem('kiekey',$('kkey').value.trim());
     if($('grem').checked)localStorage.setItem('gkey',$('gkey').value.trim());
     localStorage.setItem('kvoice',$('kvoice').value);localStorage.setItem('kmodel',$('kmodel').value);
-    localStorage.setItem('gvoice',$('gvoice').value);localStorage.setItem('gmodel',$('gmodel').value);localStorage.setItem('gstyle',$('gstyle').value);
+    localStorage.setItem('gvoice',$('gvoice').value);localStorage.setItem('gmodel',$('gmodel').value);localStorage.setItem('gstyle',$('gstyle').value);localStorage.setItem('gdelay',$('gdelay').value);
   }catch(e){}
 }
 function setProvider(p,openBox){
@@ -439,7 +447,7 @@ $('pOR').onclick=()=>setProvider('or',true);
 $('pKie').onclick=()=>setProvider('kie',true);
 $('pG').onclick=()=>setProvider('google',true);
 $('keybtn').onclick=()=>{const b=$('keybox');b.style.display=b.style.display==='block'?'none':'block'};
-['key','kkey','kvoice','kmodel','gkey','gvoice','gmodel','gstyle'].forEach(id=>{$(id).oninput=keyState;$(id).onchange=keyState});
+['key','kkey','kvoice','kmodel','gkey','gvoice','gmodel','gstyle','gdelay'].forEach(id=>{$(id).oninput=keyState;$(id).onchange=keyState});
 $('rem').onchange=()=>{if($('rem').checked)keyState();else try{localStorage.removeItem('orkey')}catch(e){}};
 $('krem').onchange=()=>{if($('krem').checked)keyState();else try{localStorage.removeItem('kiekey')}catch(e){}};
 $('grem').onchange=()=>{if($('grem').checked)keyState();else try{localStorage.removeItem('gkey')}catch(e){}};
@@ -452,6 +460,7 @@ try{
   const gv=localStorage.getItem('gvoice');if(gv&&[...$('gvoice').options].some(o=>o.value===gv))$('gvoice').value=gv;
   const gm=localStorage.getItem('gmodel');if(gm&&[...$('gmodel').options].some(o=>o.value===gm))$('gmodel').value=gm;
   const gs=localStorage.getItem('gstyle');if(gs)$('gstyle').value=gs;
+  const gd=localStorage.getItem('gdelay');if(gd&&[...$('gdelay').options].some(o=>o.value===gd))$('gdelay').value=gd;
 }catch(e){}
 
 // ---- voices (OpenRouter; saved locally, with a default one preloaded) ----
@@ -847,7 +856,6 @@ $('chunks').addEventListener('click',e=>{
 function errMsg(status,body){
   const who={kie:'kie.ai',google:'Google AI Studio'}[P()]||'OpenRouter';
   if(status===401||(P()==='google'&&(status===403||/API key/i.test(body||''))))return `مفتاح ${who} غير صالح أو غير مسموح. تحقّق منه من زر 🔑`;
-  if(P()==='google'&&status===400&&/unspecified policy reason|content_blocked|blocked for/i.test(body||''))return 'Google رفض هذا النص بسبب سياسات المحتوى (غالباً إنذار كاذب مؤقت). أعد المحاولة، أو صغّر حجم الدفعة من قسم التقسيم، أو جرّب مزوّداً آخر.';
   if(P()==='google'&&status===429)return 'تجاوزت حصة Google (المجانية محدودة بالدقيقة/اليوم). '+(body||'').slice(0,160);
   if(status===402)return `الرصيد غير كافٍ (أو سالب) في حساب ${who}`;
   if(status===429)return 'تجاوزت حد الطلبات المسموح';
@@ -904,65 +912,27 @@ async function kieBlob(c,ctl,m){
 }
 
 // Google AI Studio (Gemini API, Interactions endpoint): returns WAV Blob
+// one request per box, no automatic retries — if Google returns an error it is shown as-is
 function b64ToBytes(b64){const bin=atob(b64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u}
-// a single TTS request for one text
-async function googleSynth(text,ctl){
-  const item={type:'text',text},style=$('gstyle').value.trim();
-  if(style)item.annotations=[{type:'speech_metadata',style}];
+async function googleBlob(c,ctl){
+  const text={type:'text',text:c.text},style=$('gstyle').value.trim();
+  if(style)text.annotations=[{type:'speech_metadata',style}];
   const body={
     model:$('gmodel').value,
-    input:[{type:'user_input',content:[item]}],
+    input:[{type:'user_input',content:[text]}],
     response_format:{type:'audio'},
     generation_config:{speech_config:[{voice:$('gvoice').value.trim()||'Kore'}]}
   };
   const r=await fetch('https://generativelanguage.googleapis.com/v1beta/interactions',{method:'POST',signal:ctl.signal,headers:{'x-goog-api-key':curKey(),'Content-Type':'application/json'},body:JSON.stringify(body)});
   const raw=await r.text();let j={};try{j=JSON.parse(raw)}catch(e){}
-  if(!r.ok){
-    const msg=(j.error&&j.error.message)||raw;
-    const e={status:r.status,body:msg};
-    if(r.status===400&&/unspecified policy reason|content_blocked|blocked for/i.test(msg))e.blocked=true;
-    throw e;
-  }
+  if(!r.ok)throw {status:r.status,body:(j.error&&j.error.message)||raw};
   const auds=((j.steps||[]).flatMap(s=>s.content||[])).filter(x=>x&&x.type==='audio'&&x.data);
   if(!auds.length)throw {status:0,body:'لم يرجع Google أي صوت: '+raw.slice(0,200)};
   const a=auds[auds.length-1],mt=a.mime_type||'audio/wav';
+  c.ext=/l16|pcm/i.test(mt)?'pcm':'wav';
   let bytes=b64ToBytes(a.data);
-  if(/l16|pcm/i.test(mt))bytes=wavFromPcm(bytes);
+  if(c.ext==='pcm'){bytes=wavFromPcm(bytes);c.ext='wav'}
   return new Blob([bytes],{type:'audio/wav'});
-}
-// Google's content_blocked is non-deterministic: retry, then split into
-// sentences, synth each piece and merge the audio. Recurses when needed.
-function splitForTts(text){
-  const parts=(text||'').trim().split(/(?<=[.!?؟؛…。！？])\s+|\n+/).map(s=>s.trim()).filter(Boolean);
-  if(parts.length<2)return null;
-  const mid=Math.ceil(parts.length/2),a=parts.slice(0,mid).join(' '),b=parts.slice(mid).join(' ');
-  return (a&&b)?[a,b]:null;
-}
-async function googleBlob(c,ctl,m){
-  let blocked=false;
-  for(let t=0;t<GOOGLE_TRIES;t++){
-    try{const blob=await googleSynth(c.text,ctl);c.ext='wav';return blob}
-    catch(err){
-      if(err&&err.name==='AbortError'||err&&err.status===429)throw err;
-      if(err&&err.blocked){
-        blocked=true;
-        if(t<GOOGLE_TRIES-1){if(m)m.textContent=`حجب مؤقت... إعادة المحاولة (${t+2})`;await sleep(BLOCK_DELAY)}
-        continue;
-      }
-      throw err;
-    }
-  }
-  if(!blocked)throw {status:0,body:'تعذّر توليد الصوت من Google'};
-  const pair=splitForTts(c.text);
-  if(!pair)throw {status:400,blocked:true,body:'غير قابل للتقسيم أكثر'};
-  if(m)m.textContent='المحتوى محجوب... يجري تقسيمه لأجزاء أصغر';
-  const blobs=[];
-  for(const piece of pair){
-    if(ctl.signal.aborted)throw {name:'AbortError'};
-    blobs.push(await googleBlob({text:piece},ctl,m));
-  }
-  c.ext='wav';
-  return mergeWavs(blobs);
 }
 
 // ---- WAV helpers (merge WAVs properly: strip headers, join PCM, write one header) ----
@@ -1003,7 +973,7 @@ async function gen(i,tries=0){
     m.className='tag ok';m.textContent='تم ✓';$('c'+i).classList.add('done');$('c'+i).classList.remove('err');
     btn.disabled=false;cancel.style.display='none';ctls.delete(i);prog();markDirty();return true;
   }catch(err){
-    if(err&&err.status===429&&tries<3&&!stopReq){
+    if(err&&err.status===429&&tries<3&&!stopReq&&P()!=='google'){
       m.textContent='حد الطلبات... إعادة المحاولة خلال 20 ثانية';
       await sleep(RETRY_DELAY);
       if(!stopReq)return gen(i,tries+1);
@@ -1015,19 +985,43 @@ async function gen(i,tries=0){
     btn.disabled=false;cancel.style.display='none';ctls.delete(i);return false;
   }
 }
+// countdown shown inside a box before its request is sent (Google "generate all")
+function delayBefore(i,sec){
+  return new Promise(res=>{
+    if(stopReq)return res();
+    const m=$('m'+i),f2=n=>String(n).padStart(2,'0');
+    let s=sec;
+    const show=()=>{if(m)m.textContent=`بانتظار ${f2(Math.floor(s/60))}:${f2(s%60)} ثم الإرسال...`};
+    show();
+    const t=setInterval(()=>{
+      if(stopReq){clearInterval(t);return res()}
+      s--;show();
+      if(s<=0){clearInterval(t);res()}
+    },1000);
+  });
+}
 $('allbtn').onclick=async()=>{
   stopReq=false;$('allbtn').style.display='none';$('stopbtn').style.display='';
   const pending=chunks.map((c,i)=>i).filter(i=>!chunks[i].blob);
-  let idx=0;
-  async function worker(){
-    while(idx<pending.length&&!stopReq){
-      const i=pending[idx++];
+  const gsec=P()==='google'?(Math.max(1,parseInt($('gdelay').value)||1))*60:0;
+  if(gsec){
+    for(const i of pending){
+      if(stopReq)break;
+      await delayBefore(i,gsec);
+      if(stopReq)break;
       await gen(i);
-      if(!stopReq)await sleep(STAGGER);
     }
+  }else{
+    let idx=0;
+    async function worker(){
+      while(idx<pending.length&&!stopReq){
+        const i=pending[idx++];
+        await gen(i);
+        if(!stopReq)await sleep(STAGGER);
+      }
+    }
+    await Promise.all(Array.from({length:Math.min(CONCURRENCY,pending.length)||1},worker));
   }
-  const conc=P()==='google'?2:CONCURRENCY;
-  await Promise.all(Array.from({length:Math.min(conc,pending.length)||1},worker));
   $('stopbtn').style.display='none';$('allbtn').style.display='';
   $('allbtn').textContent=chunks.some(c=>!c.blob)?'▶ استئناف':'▶ توليد الكل';
 };
