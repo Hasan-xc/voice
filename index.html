@@ -187,7 +187,12 @@ body:not([data-p=or]) select[data-v]{display:none}
       <label><input type="checkbox" id="rem"> تذكّر على هذا الجهاز</label>
     </div>
     <div class="row" style="margin-top:8px">
-      <input id="model" value="fish-audio/s2.1-pro-free:free" style="flex:2;min-width:200px" dir="ltr">
+      <input id="model" list="ormodels" value="fish-audio/s2.1-pro-free:free" style="flex:2;min-width:200px" dir="ltr" aria-label="موديل OpenRouter">
+      <datalist id="ormodels">
+        <option value="fish-audio/s2.1-pro-free:free"></option>
+        <option value="google/gemini-3.8-flash-lite-tts"></option>
+        <option value="google/gemini-3.8-flash-tts"></option>
+      </datalist>
       <div class="vrow">
         <select id="voiceSelect" dir="ltr"></select>
         <button class="round" id="addVoiceBtn" title="إضافة صوت جديد">＋</button>
@@ -465,6 +470,7 @@ try{
 
 // ---- voices (OpenRouter; saved locally, with a default one preloaded) ----
 const DEFAULT_VOICES=[{name:'ناشينال',id:'4b06a9b39328408f95420f1ff675cd6d'}];
+const GOOGLE_TTS_VOICES=['Zephyr','Puck','Charon','Kore','Fenrir','Leda','Aoede','Callirrhoe','Enceladus','Algenib','Gacrux','Achernar','Achird','Sadaltager','Sulafat'];
 function loadVoices(){try{const v=JSON.parse(localStorage.getItem('voices')||'null');return (v&&v.length)?v:DEFAULT_VOICES}catch(e){return DEFAULT_VOICES}}
 function saveVoices(v){try{localStorage.setItem('voices',JSON.stringify(v))}catch(e){}}
 let voices=loadVoices();
@@ -863,11 +869,25 @@ function errMsg(status,body){
   return (status?status+' ':'')+(body||'').slice(0,250);
 }
 
-// OpenRouter: returns audio Blob
+// OpenRouter: returns audio Blob. Gemini TTS models only accept response_format "pcm".
 async function orBlob(c,ctl){
-  const body={model:$('model').value.trim(),input:c.text,response_format:'mp3'},v=(c.voice||$('voiceSelect').value).trim();if(v)body.voice=v;
+  const model=$('model').value.trim();
+  const geminiTts=/gemini/i.test(model)&&/tts/i.test(model);
+  const body={model,input:c.text,response_format:geminiTts?'pcm':'mp3'};
+  let v=(c.voice||$('voiceSelect').value).trim();
+  if(geminiTts){ // Gemini voices are names like Kore; ignore custom ids so the request is accepted
+    const gv=GOOGLE_TTS_VOICES.find(x=>x.toLowerCase()===v.toLowerCase());
+    if(gv)body.voice=gv;
+  }else if(v)body.voice=v;
   const r=await fetch('https://openrouter.ai/api/v1/audio/speech',{method:'POST',signal:ctl.signal,headers:{Authorization:'Bearer '+curKey(),'Content-Type':'application/json'},body:JSON.stringify(body)});
   if(!r.ok)throw {status:r.status,body:await r.text()};
+  if(geminiTts){ // raw PCM (16-bit, usually 24kHz mono) -> wrap into a WAV file
+    const bytes=new Uint8Array(await r.arrayBuffer());
+    const mt=(r.headers&&r.headers.get&&r.headers.get('content-type'))||'';
+    const m=mt.match(/rate=(\d+)/),rate=m?+m[1]:24000;
+    c.ext='wav';
+    return new Blob([wavFromPcm(bytes,rate)],{type:'audio/wav'});
+  }
   c.ext='mp3';
   return r.blob();
 }
