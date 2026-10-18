@@ -187,18 +187,22 @@ body:not([data-p=or]) select[data-v]{display:none}
       <label><input type="checkbox" id="rem"> تذكّر على هذا الجهاز</label>
     </div>
     <div class="row" style="margin-top:8px">
-      <input id="model" list="ormodels" value="fish-audio/s2.1-pro-free:free" style="flex:2;min-width:200px" dir="ltr" aria-label="موديل OpenRouter">
-      <datalist id="ormodels">
-        <option value="fish-audio/s2.1-pro-free:free"></option>
-        <option value="google/gemini-3.8-flash-lite-tts"></option>
-        <option value="google/gemini-3.8-flash-tts"></option>
-      </datalist>
-      <div class="vrow">
-        <select id="voiceSelect" dir="ltr"></select>
+      <div style="flex:2;min-width:200px"><span class="lbl">الموديل</span>
+        <select id="model" style="width:100%" dir="ltr" aria-label="موديل OpenRouter">
+          <option value="fish-audio/s2.1-pro-free:free" selected>fish-audio/s2.1-pro-free:free (مجاني)</option>
+          <option value="google/gemini-3.8-flash-lite-tts">google/gemini-3.8-flash-lite-tts (جوجل — سريع)</option>
+          <option value="google/gemini-3.8-flash-tts">google/gemini-3.8-flash-tts (جوجل — أعلى جودة)</option>
+        </select>
+      </div>
+      <div class="vrow" id="orVoiceFree">
+        <select id="voiceSelect" dir="ltr" aria-label="الصوت الافتراضي"></select>
         <button class="round" id="addVoiceBtn" title="إضافة صوت جديد">＋</button>
       </div>
+      <div class="vrow" id="orVoiceG" style="display:none">
+        <select id="orGvoice" dir="ltr" aria-label="صوت جوجل"></select>
+      </div>
     </div>
-    <small>المفتاح يبقى في متصفحك ويُرسل إلى openrouter.ai فقط. الصوت المختار هنا افتراضي لكل الصناديق، ويمكن لكل صندوق اختيار صوت مختلف.</small>
+    <small id="orHint">المفتاح يبقى في متصفحك ويُرسل إلى openrouter.ai فقط. الصوت المختار هنا افتراضي لكل الصناديق، ويمكن لكل صندوق اختيار صوت مختلف.</small>
   </div>
 
   <!-- kie panel -->
@@ -470,12 +474,27 @@ try{
 
 // ---- voices (OpenRouter; saved locally, with a default one preloaded) ----
 const DEFAULT_VOICES=[{name:'ناشينال',id:'4b06a9b39328408f95420f1ff675cd6d'}];
-const GOOGLE_TTS_VOICES=['Zephyr','Puck','Charon','Kore','Fenrir','Leda','Aoede','Callirrhoe','Enceladus','Algenib','Gacrux','Achernar','Achird','Sadaltager','Sulafat'];
+const GOOGLE_TTS_VOICES=[['Zephyr','مشرق'],['Puck','شاب مرح'],['Charon','راوٍ معلوماتي'],['Kore','حازم'],['Fenrir','متحمس'],['Leda','شبابي'],['Orus','حازم'],['Aoede','خفيف'],['Callirrhoe','هادئ'],['Autonoe','مشرق'],['Enceladus','ناعم النَفَس'],['Iapetus','واضح'],['Umbriel','هادئ'],['Algieba','سلس'],['Despina','سلس'],['Erinome','واضح'],['Algenib','أجش'],['Rasalgethi','معلوماتي'],['Laomedeia','متحمس'],['Achernar','ناعم'],['Alnilam','حازم'],['Schedar','متّزن'],['Gacrux','ناضج'],['Pulcherrima','جريء'],['Achird','ودود'],['Zubenelgenubi','عفوي'],['Vindemiatrix','لطيف'],['Sadachbia','حيوي'],['Sadaltager','خبير'],['Sulafat','دافئ']];
+const googleVoiceNames=()=>GOOGLE_TTS_VOICES.map(v=>v[0]);
 function loadVoices(){try{const v=JSON.parse(localStorage.getItem('voices')||'null');return (v&&v.length)?v:DEFAULT_VOICES}catch(e){return DEFAULT_VOICES}}
 function saveVoices(v){try{localStorage.setItem('voices',JSON.stringify(v))}catch(e){}}
 let voices=loadVoices();
+// OpenRouter model: free (custom voices) or a Gemini TTS model (Google voices + PCM request)
+function isOrGemini(){const m=$('model').value;return /gemini/i.test(m)&&/tts/i.test(m)}
+function fillOrGvoice(){$('orGvoice').innerHTML=GOOGLE_TTS_VOICES.map(([n,d])=>`<option value="${n}"${n==='Kore'?' selected':''}>${n} — ${d}</option>`).join('')}
+function setOrModel(){
+  const g=isOrGemini();
+  $('orVoiceFree').style.display=g?'none':'flex';
+  $('orVoiceG').style.display=g?'flex':'none';
+  $('orHint').textContent=g
+    ?'صوت Gemini عبر OpenRouter يُطلب بصيغة PCM ويُحوَّل تلقائياً إلى WAV. المفتاح يبقى في متصفحك ويُرسل إلى openrouter.ai فقط.'
+    :'المفتاح يبقى في متصفحك ويُرسل إلى openrouter.ai فقط. الصوت المختار هنا افتراضي لكل الصناديق، ويمكن لكل صندوق اختيار صوت مختلف.';
+  try{localStorage.setItem('ormodel',$('model').value);localStorage.setItem('orgvoice',$('orGvoice').value)}catch(e){}
+  renderVoiceSelects();
+}
 function renderVoiceSelects(){
-  const opts=voices.map(v=>`<option value="${esc(v.id)}">${esc(v.name)}</option>`).join('');
+  const opts=(isOrGemini()?googleVoiceNames().map(n=>[n,n]):voices.map(v=>[v.name,v.id]))
+    .map(([name,id])=>`<option value="${esc(id)}">${esc(name)}</option>`).join('');
   const cur=$('voiceSelect').value;
   $('voiceSelect').innerHTML=opts;
   if([...$('voiceSelect').options].some(o=>o.value===cur))$('voiceSelect').value=cur;
@@ -485,7 +504,12 @@ function renderVoiceSelects(){
     if([...sel.options].some(o=>o.value===kept))sel.value=kept;
   });
 }
-renderVoiceSelects();
+fillOrGvoice();
+try{const om=localStorage.getItem('ormodel');if(om&&[...$('model').options].some(o=>o.value===om))$('model').value=om;
+  const og=localStorage.getItem('orgvoice');if(og&&[...$('orGvoice').options].some(o=>o.value===og))$('orGvoice').value=og;}catch(e){}
+setOrModel();
+$('model').onchange=()=>{setOrModel();markDirty()};
+$('orGvoice').onchange=()=>markDirty();
 $('addVoiceBtn').onclick=()=>{$('vName').value='';$('vId').value='';$('voiceOverlay').classList.add('show');$('vName').focus()};
 $('vCancel').onclick=()=>$('voiceOverlay').classList.remove('show');
 $('voiceOverlay').onclick=e=>{if(e.target.id==='voiceOverlay')$('voiceOverlay').classList.remove('show')};
@@ -874,10 +898,9 @@ async function orBlob(c,ctl){
   const model=$('model').value.trim();
   const geminiTts=/gemini/i.test(model)&&/tts/i.test(model);
   const body={model,input:c.text,response_format:geminiTts?'pcm':'mp3'};
-  let v=(c.voice||$('voiceSelect').value).trim();
-  if(geminiTts){ // Gemini voices are names like Kore; ignore custom ids so the request is accepted
-    const gv=GOOGLE_TTS_VOICES.find(x=>x.toLowerCase()===v.toLowerCase());
-    if(gv)body.voice=gv;
+  const v=(c.voice||(geminiTts?$('orGvoice').value:$('voiceSelect').value)).trim();
+  if(geminiTts){ // Gemini voices are names like Kore
+    if(googleVoiceNames().includes(v))body.voice=v;
   }else if(v)body.voice=v;
   const r=await fetch('https://openrouter.ai/api/v1/audio/speech',{method:'POST',signal:ctl.signal,headers:{Authorization:'Bearer '+curKey(),'Content-Type':'application/json'},body:JSON.stringify(body)});
   if(!r.ok)throw {status:r.status,body:await r.text()};
