@@ -154,6 +154,18 @@ body:not([data-p=or]) select[data-v]{display:none}
 .modal h3{margin:0 0 12px;font-size:16px}
 .modal .row{margin-top:10px}
 .modal input{width:100%}
+/* merge preview */
+.merge-modal{max-width:560px;max-height:88vh;display:flex;flex-direction:column;text-align:right}
+.merge-list{overflow-y:auto;max-height:55vh;display:flex;flex-direction:column;gap:8px;padding:2px}
+.merge-item{display:flex;align-items:center;gap:8px;background:var(--cream);border:1px solid var(--line);border-radius:10px;padding:8px;flex-wrap:wrap;cursor:grab}
+.merge-item.over{outline:2px dashed var(--or)}
+.merge-item.dragging{opacity:.45}
+.merge-item .mi-handle{color:var(--mut);font-weight:800;cursor:grab}
+.merge-item .mi-name{font-weight:800;font-size:13px;min-width:54px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.merge-item audio{flex:1;min-width:150px;height:34px}
+.merge-item .mi-btns{display:flex;gap:4px}
+.merge-item .mi-btns button{padding:2px 7px;font-size:12px;border-radius:8px;min-width:auto}
+.merge-empty{color:var(--mut);font-size:13px;text-align:center;padding:10px}
 </style>
 </head>
 <body data-p="or">
@@ -296,6 +308,22 @@ body:not([data-p=or]) select[data-v]{display:none}
   </div>
 </div>
 
+<div class="overlay" id="mergeOverlay">
+  <div class="modal merge-modal" role="dialog" aria-modal="true" aria-label="معاينة الدمج">
+    <h3>🔗 معاينة الدمج</h3>
+    <div class="merge-list" id="mergeList"></div>
+    <div class="row" style="margin-top:10px">
+      <label class="ghost mini" for="mergeAddFile" style="cursor:pointer">＋ إضافة صوت من الجهاز</label>
+      <input type="file" id="mergeAddFile" accept="audio/*,.mp3,.wav,.m4a,.ogg,.aac,.flac" class="visually-hidden" multiple>
+    </div>
+    <div class="row" style="margin-top:12px;justify-content:flex-end;flex-wrap:wrap">
+      <button class="ghost mini" id="mergeCancel">إغلاق</button>
+      <button class="sec mini" id="mergeDoBtn">🔗 دمج الآن</button>
+    </div>
+    <div id="mergeResult" style="margin-top:10px"></div>
+  </div>
+</div>
+
 <div class="card">
   <h2><i>1</i>إدخال النص أو الملف</h2>
 
@@ -356,6 +384,7 @@ body:not([data-p=or]) select[data-v]{display:none}
   <div class="bar"><i id="fill"></i></div>
   <div class="row" style="justify-content:space-between">
     <div class="tag" id="prog"></div>
+    <div class="tag" id="batchCount"></div>
     <div class="tag" id="costest"></div>
   </div>
   <div class="row" style="margin-top:8px"><span class="lbl" style="margin:0">اسم الملف المدمج</span><input id="mergeName" class="fname" value="merged" dir="ltr" aria-label="اسم الملف المدمج"></div>
@@ -421,6 +450,7 @@ drawerBack.onclick=closeDrawer;
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
     if($('fsEditor').classList.contains('open')){closeFsEditor();return}
+    if($('mergeOverlay').classList.contains('show')){closeMerge();return}
     if($('saveOverlay').classList.contains('show')){closeSaveModal();return}
     closeDrawer();return;
   }
@@ -815,8 +845,7 @@ $('splitbtn').onclick=()=>{
 
 // ---- render ----
 const ext=c=>c.ext||'mp3';
-const pad3=n=>String(n).padStart(3,'0');
-const defName=i=>`part-${pad3(i+1)}`;
+const defName=i=>String(i+1);
 // strip forbidden filename chars and a typed extension; the real extension is added separately
 const cleanName=s=>(s||'').replace(/[\\/:*?"<>|\x00-\x1f]/g,'').replace(/\.(mp3|wav|pcm|ogg|m4a|aac|flac)$/i,'').replace(/[. ]+$/,'').trim();
 const fname=(i,c)=>`${cleanName(c.name)||defName(i)}.${ext(c)}`;
@@ -1043,11 +1072,33 @@ function delayBefore(i,sec){
     },1000);
   });
 }
+// countdown between kie batches (shown under the progress bar)
+function batchCountdown(sec){
+  return new Promise(res=>{
+    const el=$('batchCount');let s=sec;
+    const show=()=>{if(el)el.textContent=`⏳ الدفعة التالية خلال ${s} ثانية`};
+    show();
+    const t=setInterval(()=>{
+      s--;
+      if(stopReq||s<=0){clearInterval(t);if(el)el.textContent='';return res()}
+      show();
+    },1000);
+  });
+}
 $('allbtn').onclick=async()=>{
   stopReq=false;$('allbtn').style.display='none';$('stopbtn').style.display='';
   const pending=chunks.map((c,i)=>i).filter(i=>!chunks[i].blob);
   const gsec=P()==='google'?(Math.max(1,parseInt($('gdelay').value)||1))*60:0;
-  if(gsec){
+  if(P()==='kie'){
+    // 15 requests at once, then a 10-second gap before the next 15, until done
+    const BATCH=15,GAP=10,procs=[];
+    for(let s=0;s<pending.length&&!stopReq;s+=BATCH){
+      const batch=pending.slice(s,s+BATCH);
+      batch.forEach(i=>procs.push(gen(i)));
+      if(s+BATCH<pending.length&&!stopReq)await batchCountdown(GAP);
+    }
+    await Promise.all(procs);
+  }else if(gsec){
     for(const i of pending){
       if(stopReq)break;
       await delayBefore(i,gsec);
@@ -1070,19 +1121,78 @@ $('allbtn').onclick=async()=>{
 };
 $('stopbtn').onclick=()=>{stopReq=true;ctls.forEach(c=>c.abort())};
 
-// ---- merge ----
-$('mergebtn').onclick=async()=>{
-  const r=chunks.filter(c=>c.blob);if(!r.length)return alert('ولّد صوتاً لصندوق واحد على الأقل');
-  const e=ext(r[0]);
-  if(r.some(c=>ext(c)!==e))return alert('الملفات المولّدة بصيغ مختلطة (مثلاً mp3 و wav). ولّدها كلها من مزوّد واحد أو استخدم تصدير ZIP.');
+// ---- merge preview (reorder / add / delete, then merge in order) ----
+let mergeItems=[],mergeDrag=null;
+function renderMergeList(){
+  const box=$('mergeList');
+  if(!mergeItems.length){box.innerHTML='<div class="merge-empty">لا توجد أصوات بعد.</div>';return}
+  box.innerHTML=mergeItems.map((it,idx)=>`<div class="merge-item" draggable="true" data-mi="${idx}">
+      <span class="mi-handle" aria-hidden="true">⋮⋮</span>
+      <span class="mi-name" dir="ltr" title="${esc(it.name)}">${esc(it.name)}</span>
+      <audio controls preload="none" src="${it.url}"></audio>
+      <span class="mi-btns">
+        <button type="button" class="ghost mini" data-up="${idx}" title="أعلى" aria-label="أعلى">▲</button>
+        <button type="button" class="ghost mini" data-down="${idx}" title="أسفل" aria-label="أسفل">▼</button>
+        <button type="button" class="ghost mini" data-del="${idx}" title="حذف" aria-label="حذف">✕</button>
+      </span>
+    </div>`).join('');
+}
+function openMerge(){
+  const list=chunks.map((c,i)=>({c,i})).filter(x=>x.c.blob);
+  if(!list.length)return alert('ولّد صوتاً لصندوق واحد على الأقل');
+  mergeItems.forEach(it=>URL.revokeObjectURL(it.url));
+  mergeItems=list.map(({c,i})=>({name:cleanName(c.name)||defName(i),ext:ext(c),blob:c.blob,url:URL.createObjectURL(c.blob)}));
+  renderMergeList();
+  $('mergeResult').innerHTML='';
+  $('mergeOverlay').classList.add('show');
+}
+function closeMerge(){
+  mergeItems.forEach(it=>URL.revokeObjectURL(it.url));
+  mergeItems=[];
+  $('mergeOverlay').classList.remove('show');
+}
+$('mergebtn').onclick=openMerge;
+$('mergeCancel').onclick=closeMerge;
+$('mergeOverlay').onclick=e=>{if(e.target.id==='mergeOverlay')closeMerge()};
+$('mergeList').addEventListener('click',e=>{
+  const up=e.target.dataset.up,down=e.target.dataset.down,del=e.target.dataset.del;
+  if(up!==undefined){const i=+up;if(i>0){[mergeItems[i-1],mergeItems[i]]=[mergeItems[i],mergeItems[i-1]];renderMergeList()}}
+  else if(down!==undefined){const i=+down;if(i<mergeItems.length-1){[mergeItems[i],mergeItems[i+1]]=[mergeItems[i+1],mergeItems[i]];renderMergeList()}}
+  else if(del!==undefined){const i=+del;URL.revokeObjectURL(mergeItems[i].url);mergeItems.splice(i,1);renderMergeList()}
+});
+$('mergeList').addEventListener('dragstart',e=>{const el=e.target.closest('[data-mi]');if(!el)return;mergeDrag=+el.dataset.mi;el.classList.add('dragging');try{e.dataTransfer.effectAllowed='move'}catch(_){}});
+$('mergeList').addEventListener('dragend',e=>{const el=e.target.closest('[data-mi]');if(el)el.classList.remove('dragging');mergeDrag=null;document.querySelectorAll('.merge-item.over').forEach(x=>x.classList.remove('over'))});
+$('mergeList').addEventListener('dragover',e=>{e.preventDefault();const el=e.target.closest('[data-mi]');if(!el)return;document.querySelectorAll('.merge-item.over').forEach(x=>x.classList.remove('over'));el.classList.add('over')});
+$('mergeList').addEventListener('drop',e=>{
+  e.preventDefault();const el=e.target.closest('[data-mi]');
+  if(!el||mergeDrag===null)return;
+  const to=+el.dataset.mi,from=mergeDrag;
+  document.querySelectorAll('.merge-item.over').forEach(x=>x.classList.remove('over'));
+  if(from!==to){const [m]=mergeItems.splice(from,1);mergeItems.splice(to,0,m)}
+  mergeDrag=null;renderMergeList();
+});
+$('mergeAddFile').onchange=e=>{
+  for(const f of e.target.files){
+    const nm=cleanName(f.name.replace(/\.[^.]+$/,''))||f.name;
+    const ex=((f.name.match(/\.([a-z0-9]+)$/i)||[])[1]||'mp3').toLowerCase();
+    mergeItems.push({name:nm,ext:ex,blob:f,url:URL.createObjectURL(f)});
+  }
+  e.target.value='';renderMergeList();
+};
+$('mergeDoBtn').onclick=async()=>{
+  if(!mergeItems.length)return alert('لا توجد أصوات للدمج');
+  const exts=[...new Set(mergeItems.map(it=>it.ext))];
+  if(exts.length>1)return alert('الملفات بصيغ مختلطة ('+exts.join(', ')+'). استخدم ملفات من نفس الصيغة.');
+  const e=exts[0];
   let blob;
-  try{blob=e==='wav'?await mergeWavs(r.map(c=>c.blob)):new Blob(r.map(c=>c.blob),{type:r[0].blob.type||'audio/mpeg'})}
+  try{blob=e==='wav'?await mergeWavs(mergeItems.map(it=>it.blob)):new Blob(mergeItems.map(it=>it.blob),{type:mergeItems[0].blob.type||'audio/mpeg'})}
   catch(err){return alert('تعذّر الدمج: '+err.message)}
   const url=URL.createObjectURL(blob);
-  if(mergeUrl)URL.revokeObjectURL(mergeUrl);
-  mergeUrl=url;
+  if(mergeUrl)URL.revokeObjectURL(mergeUrl);mergeUrl=url;
   const base=cleanName($('mergeName').value)||'merged';
-  $('mergeout').innerHTML=`<p class="tag">دُمج ${r.length} من ${chunks.length} مقطع</p><audio controls src="${url}"></audio><a href="${url}" data-ext="${e}" download="${esc(base)}.${e}">تحميل الملف المدمج</a>`;
+  const html=`<p class="tag">دُمج ${mergeItems.length} صوتاً بالترتيب</p><audio controls src="${url}"></audio><a href="${url}" data-ext="${e}" download="${esc(base)}.${e}">تحميل الملف المدمج</a>`;
+  $('mergeResult').innerHTML=html;
+  $('mergeout').innerHTML=html;
 };
 
 // ---- ZIP (store, no compression) ----
