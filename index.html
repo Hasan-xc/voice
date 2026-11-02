@@ -197,7 +197,8 @@ body:not([data-p=or]) select[data-v]{display:none}
 .g-voice-tools{display:flex;gap:6px;align-items:center}
 .g-voice-searchwrap{position:relative;flex:1;min-width:0}
 .g-voice-searchwrap input{width:100%;padding:7px 30px 7px 10px;font-size:13px}
-.g-voice-searchicon{position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:12px;opacity:.7;pointer-events:none}
+.g-voice-searchicon{position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:12px;opacity:.7;background:none;border:0;padding:0;box-shadow:none;text-shadow:none;color:var(--mut);cursor:pointer;line-height:1}
+.g-voice-searchicon:hover{filter:none;opacity:1}
 .g-voice-filterbtn{flex:0 0 auto;background:var(--cream);color:var(--ink);border:1px solid var(--line);box-shadow:none;text-shadow:none;padding:7px 10px;font-size:12.5px;border-radius:9px;min-height:34px}
 .g-voice-filterbtn:hover{filter:none;border-color:var(--ol)}
 .g-voice-filterbtn.on{border-color:var(--or);color:var(--or)}
@@ -349,7 +350,7 @@ body:not([data-p=or]) select[data-v]{display:none}
           <div class="g-voice-panel" id="gVoicePanel" hidden>
             <div class="g-voice-tools">
               <div class="g-voice-searchwrap">
-                <span class="g-voice-searchicon" aria-hidden="true">🔍</span>
+                <button class="g-voice-searchicon" id="gVoiceSearchIcon" type="button" aria-label="فتح البحث">🔍</button>
                 <input id="gvoiceSearch" placeholder="ابحث بالاسم أو ذكر أو غليظ أو ناعم…" autocomplete="off">
               </div>
               <button class="g-voice-filterbtn" id="gVoiceFilterBtn" type="button" aria-expanded="false">تصفية</button>
@@ -1091,7 +1092,6 @@ function openVoicePanel(){
   const f=$('gVoiceFilterPanel');if(f)f.hidden=true;
   $('gVoiceFilterBtn').setAttribute('aria-expanded','false');
   const cf=$('gCustomForm');if(cf)cf.hidden=true;
-  setTimeout(()=>{const s=$('gvoiceSearch');if(s)s.focus()},50);
 }
 function closeVoicePanel(){
   const p=$('gVoicePanel');if(!p)return;
@@ -1529,6 +1529,7 @@ $('gRefreshVoices').onclick=async()=>{
   }finally{btn.disabled=false;btn.textContent=old}
 };
 $('gvoiceSearch').oninput=()=>renderGoogleVoicePicker();
+$('gVoiceSearchIcon').onclick=()=>$('gvoiceSearch').focus();
 $('gvoiceGender').onchange=()=>renderGoogleVoicePicker();
 $('gvoiceTone').onchange=()=>renderGoogleVoicePicker();
 $('gVoiceTrigger').onclick=()=>{const p=$('gVoicePanel');p.hidden?openVoicePanel():closeVoicePanel()};
