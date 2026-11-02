@@ -136,8 +136,8 @@ body:not([data-p=or]) select[data-v]{display:none}
 .dropzone{border:2px dashed var(--sg);border-radius:16px;padding:34px 16px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;cursor:pointer;background:var(--cream);transition:border-color .2s,background-color .2s,transform .1s;user-select:none}
 .dropzone:hover,.dropzone.drag{border-color:var(--or);background:rgba(219,149,88,.08)}
 .dropzone svg{width:54px;height:54px;color:var(--or);margin-bottom:10px;opacity:.9}
-.dropzone .dz-title{font-weight:800;font-size:15.5px;color:var(--ink);margin-bottom:4px}
-.dropzone .dz-sub{font-size:13px;color:var(--mut);opacity:.75;direction:ltr}
+.dropzone .dz-title{display:block;font-weight:800;font-size:15.5px;color:var(--ink);margin-bottom:4px}
+.dropzone .dz-sub{display:block;font-size:13px;color:var(--mut);opacity:.75;direction:ltr}
 .text-actions{display:none;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:10px}
 .text-actions.show{display:flex}
 .text-actions button{white-space:nowrap}
@@ -145,7 +145,8 @@ body:not([data-p=or]) select[data-v]{display:none}
 
 /* voice select row */
 .vrow{display:flex;gap:6px;align-items:center;flex:1;min-width:180px}
-.vrow select{flex:1}
+.vrow select{flex:1;min-width:0}
+.vrow input{flex:0 0 130px;min-width:100px}
 
 /* modal */
 .overlay{position:fixed;inset:0;background:rgba(20,20,10,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
@@ -166,6 +167,34 @@ body:not([data-p=or]) select[data-v]{display:none}
 .merge-item .mi-btns{display:flex;gap:4px}
 .merge-item .mi-btns button{padding:2px 7px;font-size:12px;border-radius:8px;min-width:auto}
 .merge-empty{color:var(--mut);font-size:13px;text-align:center;padding:10px}
+/* Google accounts & quota */
+.g-note{display:block;line-height:1.55;margin:6px 0 8px}
+.g-accounts{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.g-account{border:1px solid var(--line);border-radius:11px;padding:9px;background:var(--cream)}
+.g-acc-head{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.g-acc-name{flex:0 0 120px;min-width:90px;font-weight:700}
+.g-acc-key{flex:1;min-width:170px;direction:ltr}
+.g-acc-head label{font-size:12.5px;color:var(--mut);white-space:nowrap}
+.g-acc-quota{font-size:12.5px;color:var(--mut);margin-top:6px;line-height:1.7}
+.g-acc-quota b{color:var(--ink)}
+.g-acc-line{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:2px}
+.g-acc-line .actbtn{padding:1px 6px;font-size:11.5px;border-radius:7px;min-width:auto}
+.g-acc-ov{display:flex;gap:6px;align-items:center;margin-top:5px;flex-wrap:wrap;font-size:12px;color:var(--mut)}
+.g-acc-ov input{width:64px;padding:3px 6px;font-size:12px}
+.g-acc-bad{color:var(--bad);font-weight:700}
+.g-acc-ok{color:var(--ok);font-weight:700}
+.g-quota-summary{font-size:13px;line-height:1.8;background:var(--cream);border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-top:8px}
+.g-model-order{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.g-model-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;border:1px dashed var(--line);border-radius:9px;padding:6px 8px;font-size:12.5px;background:#fffaf0}
+.g-model-row b{min-width:42px}
+.g-model-row input[type=number]{width:72px;padding:3px 6px;font-size:12px}
+.g-model-row .grow{flex:1;color:var(--mut);min-width:100px}
+.g-model-row .actbtn{padding:1px 7px;font-size:12px;border-radius:7px;min-width:auto}
+.g-search{flex:1;min-width:160px}
+.g-reset{font-size:12px;line-height:1.5}
+/* toast */
+#toast{position:fixed;right:14px;bottom:18px;background:var(--ink);color:#fff;padding:9px 13px;border-radius:10px;font-size:13px;z-index:80;opacity:0;transform:translateY(8px);transition:opacity .2s,transform .2s;pointer-events:none;max-width:min(90vw,360px);line-height:1.5}
+#toast.show{opacity:1;transform:none}
 </style>
 </head>
 <body data-p="or">
@@ -212,6 +241,7 @@ body:not([data-p=or]) select[data-v]{display:none}
       </div>
       <div class="vrow" id="orVoiceG" style="display:none">
         <select id="orGvoice" dir="ltr" aria-label="صوت جوجل"></select>
+        <input id="orGvoiceManual" placeholder="اسم صوت يدوي" dir="ltr" aria-label="اسم صوت جوجل يدوياً">
       </div>
     </div>
     <small id="orHint">المفتاح يبقى في متصفحك ويُرسل إلى openrouter.ai فقط. الصوت المختار هنا افتراضي لكل الصناديق، ويمكن لكل صندوق اختيار صوت مختلف.</small>
@@ -238,30 +268,60 @@ body:not([data-p=or]) select[data-v]{display:none}
   <!-- Google AI Studio panel -->
   <div id="gPanel">
     <h2>إعدادات Google AI Studio</h2>
-    <div class="row">
-      <input id="gkey" type="password" placeholder="مفتاح Gemini API (AIza...)" style="flex:1;min-width:200px" dir="ltr">
-      <label><input type="checkbox" id="grem"> تذكّر على هذا الجهاز</label>
+    <div class="row" style="margin-top:4px">
+      <label><input type="checkbox" id="grem"> تذكّر مفاتيح الحسابات على هذا الجهاز</label>
+      <span id="gkeyState" class="tag"></span>
     </div>
+    <small class="g-note">الحصة اليومية تُحسب لكل مشروع ولكل موديل، وليس لكل مفتاح. المفتاحان من نفس المشروع يشتركان في الحصة. انظر حصتك الفعلية في AI Studio ضمن صفحة Rate limits للمشروع.</small>
+
+    <div id="gAccounts" class="g-accounts"></div>
     <div class="row" style="margin-top:8px">
-      <div style="flex:1;min-width:180px"><span class="lbl">الصوت (voice)</span>
-        <select id="gvoice" style="width:100%" aria-label="اختر صوت Google">
-          <option value="Zephyr">Zephyr — صوت مشرق</option>
-          <option value="Puck">Puck — شاب مرح</option>
-          <option value="Charon">Charon — راوي معلوماتي</option>
-          <option value="Kore" selected>Kore — صوت حازم</option>
-          <option value="Fenrir">Fenrir — صوت متحمس</option>
-          <option value="Leda">Leda — صوت شبابي</option>
-          <option value="Aoede">Aoede — صوت خفيف</option>
-          <option value="Callirrhoe">Callirrhoe — صوت هادئ</option>
-          <option value="Enceladus">Enceladus — صوت ناعم النَفَس</option>
-          <option value="Algenib">Algenib — صوت أجش</option>
-          <option value="Gacrux">Gacrux — صوت ناضج</option>
-          <option value="Achernar">Achernar — صوت هادئ وناعم</option>
-          <option value="Achird">Achird — صوت ودود</option>
-          <option value="Sadaltager">Sadaltager — صوت خبير</option>
-          <option value="Sulafat">Sulafat — صوت دافئ</option>
+      <button class="ghost mini" id="gAddAccount" type="button">＋ إضافة حساب</button>
+    </div>
+
+    <div id="gQuotaSummary" class="g-quota-summary"></div>
+
+    <div class="row" style="margin-top:8px">
+      <div style="flex:0 0 150px"><span class="lbl">وضع اختيار الحساب</span>
+        <select id="gmode" style="width:100%">
+          <option value="auto">تلقائي</option>
+          <option value="manual">يدوي</option>
         </select>
       </div>
+      <div style="flex:1;min-width:220px;align-self:flex-end"><span id="gResetCountdown" class="tag g-reset">—</span></div>
+    </div>
+
+    <div id="gManualRow" class="row" style="margin-top:8px;display:none">
+      <div style="flex:1;min-width:160px"><span class="lbl">الحساب</span><select id="gManualAccount" style="width:100%"></select></div>
+      <div style="flex:1;min-width:160px"><span class="lbl">الموديل</span>
+        <select id="gmodel" style="width:100%" dir="ltr">
+          <option value="gemini-3.8-flash-lite-tts">gemini-3.8-flash-lite-tts (سريع/اقتصادي)</option>
+          <option value="gemini-3.8-flash-tts">gemini-3.8-flash-tts (أعلى جودة)</option>
+        </select>
+      </div>
+      <div style="flex:1;min-width:160px;align-self:flex-end"><span id="gManualInfo" class="tag"></span></div>
+    </div>
+
+    <div id="gModelOrder" class="g-model-order"></div>
+
+    <div class="row" style="margin-top:8px">
+      <div style="flex:1;min-width:200px"><span class="lbl">الصوت (voice)</span>
+        <div class="row" style="margin-top:2px">
+          <select id="gvoice" style="flex:1;min-width:150px" aria-label="اختر صوت Google"></select>
+          <input id="gvoiceManual" style="flex:1;min-width:130px" placeholder="أو اسم صوت يدوي" dir="ltr">
+        </div>
+      </div>
+      <div style="flex:0 0 auto;align-self:flex-end">
+        <button class="ghost mini" id="gRefreshVoices" type="button">تحديث الأصوات من Google</button>
+      </div>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <input id="gvoiceSearch" class="g-search" placeholder="ابحث باسم الصوت…">
+      <select id="gvoiceLang" aria-label="فلترة حسب اللغة"></select>
+      <select id="gvoiceGender" aria-label="فلترة حسب الجنس"></select>
+    </div>
+
+    <div class="row" style="margin-top:8px">
       <div style="flex:1;min-width:130px"><span class="lbl">التأخير بين الطلبات</span>
         <select id="gdelay" style="width:100%" aria-label="التأخير بين الطلبات عند توليد الكل">
           <option value="1" selected>دقيقة واحدة</option>
@@ -270,23 +330,17 @@ body:not([data-p=or]) select[data-v]{display:none}
           <option value="5">5 دقائق</option>
         </select>
       </div>
-      <div style="flex:2;min-width:200px"><span class="lbl">الموديل</span>
-        <select id="gmodel" style="width:100%" dir="ltr">
-          <option value="gemini-3.8-flash-lite-tts">gemini-3.8-flash-lite-tts (سريع/اقتصادي)</option>
-          <option value="gemini-3.8-flash-tts">gemini-3.8-flash-tts (أعلى جودة)</option>
-        </select>
-      </div>
     </div>
     <div class="row" style="margin-top:8px">
       <div style="flex:1"><span class="lbl">أسلوب الإلقاء (style) — اختياري، مثلاً: هادئ ودافئ</span><input id="gstyle" style="width:100%" placeholder="اتركه فارغاً في الغالب"></div>
     </div>
-    <small>احصل على المفتاح من <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. يبقى في متصفحك ويُرسل إلى generativelanguage.googleapis.com فقط. الحصة المجانية محدودة بعدد الطلبات. يتم إرسال طلب واحد لكل صندوق ثم انتظار الرد؛ وأثناء «توليد الكل» يُطبَّق فاصل زمني من قائمة «التأخير بين الطلبات» قبل كل طلب. إن أرجع Google خطأ فسيظهر كما هو. الناتج WAV ويدعم العربية تلقائياً.</small>
+    <small>احصل على المفتاح من <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. يبقى في متصفحك ويُرسل إلى generativelanguage.googleapis.com فقط. الحصة المجانية محدودة بعدد الطلبات. يُرسل طلب واحد لكل صندوق ثم انتظار الرد؛ وأثناء «توليد الكل» يُطبَّق فاصل زمني من قائمة «التأخير بين الطلبات» قبل كل طلب. الناتج WAV ويدعم العربية تلقائياً.</small>
   </div>
 </div>
 
-<div class="overlay" id="voiceOverlay">
+<div class="overlay" id="voiceOverlay" role="dialog" aria-modal="true" aria-labelledby="vTitle">
   <div class="modal">
-    <h3>➕ إضافة صوت جديد</h3>
+    <h3 id="vTitle">➕ إضافة صوت جديد</h3>
     <input id="vName" placeholder="اسم الصوت (مثلاً: ناشينال)">
     <div class="row"><input id="vId" placeholder="معرّف الصوت (Voice ID)" dir="ltr"></div>
     <div class="row" style="justify-content:flex-end">
@@ -335,8 +389,8 @@ body:not([data-p=or]) select[data-v]{display:none}
   <div id="uploadPane">
     <label class="dropzone" id="dropzone" for="file">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/><path d="M12 13v8"/><path d="m9 16 3-3 3 3"/></svg>
-      <div class="dz-title" id="dzTitle">اسحب الملف هنا أو اضغط لرفعه</div>
-      <div class="dz-sub">(docx / txt / md / srt / html)</div>
+      <span class="dz-title" id="dzTitle">اسحب الملف هنا أو اضغط لرفعه</span>
+      <span class="dz-sub">(docx / txt / md / srt / html)</span>
       <span id="filename" class="tag" style="display:none;margin-top:8px;color:var(--ok);font-weight:700"></span>
     </label>
     <input type="file" id="file" class="visually-hidden" accept=".txt,.md,.docx,.html,.htm,.srt,.json,.csv,text/*">
@@ -411,6 +465,7 @@ body:not([data-p=or]) select[data-v]{display:none}
   </div>
 </div>
 
+<div id="toast" role="status" aria-live="polite"></div>
 <script>
 const $=id=>document.getElementById(id),enc=new TextEncoder();
 const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
@@ -418,16 +473,114 @@ const words=s=>(s.trim().match(/\S+/g)||[]).length,bytes=s=>enc.encode(s).length
 const tokens=s=>{const a=(s.match(/[\u0600-\u06FF]/g)||[]).length;return Math.ceil(a/2.1+(s.length-a)/4)};
 const meas={chars:s=>s.length,words,bytes,tokens},fmt=n=>n.toLocaleString('en'),sleep=ms=>new Promise(r=>setTimeout(r,ms));
 // token guidance per provider: OpenRouter/kie keep the 4000 advice, Google allows up to 10000
-const TOKEN_WARN={or:4000,kie:4000,google:10000};
+const TOKEN_WARN={or:4000,kie:4000,google:8000};
 const TOK_HINT={
   or:'يُنصح ألا يتجاوز الصندوق ≈4000 توكن تقريبي حتى لا يقترب من حد سياق النموذج (8K).',
   kie:'يُنصح ألا يتجاوز الصندوق ≈4000 توكن تقريبي حتى لا يقترب من حد سياق النموذج (8K). في kie يُفضّل ألا يزيد الصندوق عن 5000 حرف (وأقل من دقيقة صوت للجودة الأفضل).',
-  google:'يُنصح ألا يتجاوز الصندوق ≈10000 توكن تقريبي.'
+  google:'يُنصح ألا يتجاوز الصندوق ≈8000 توكن تقريبي (حد الإدخال الرسمي 8,192).'
 };
-const CONCURRENCY=3, RETRY_DELAY=20000, STAGGER=650, POLL_MS=3000, POLL_MAX=120;
+const CONCURRENCY=3, RETRY_DELAY=20000, STAGGER=650;
+// Kie rate limits (official docs: 20 createTask per 10s per account, >100 concurrent tasks).
+// We deliberately use half the official launch limit as a safety margin.
+const KIE_LAUNCH_PER_WINDOW=10;
+const KIE_WINDOW_MS=10000;
+const KIE_MAX_CONCURRENT=40;
+const KIE_POLL_MS=4000;
+const KIE_POLL_JITTER=500;
+const KIE_POLL_MAX=Math.ceil(8*60*1000/KIE_POLL_MS); // ~8 minutes
+const KIE_RETRY_DELAYS=[10000,20000,40000]; // 10s, 20s, 40s (4 attempts total)
+const KIE_MAX_ATTEMPTS=4;
+const GOOGLE_TIMEOUT=120000, KIE_CREATE_TIMEOUT=30000, KIE_POLL_TIMEOUT=20000, KIE_DOWNLOAD_TIMEOUT=120000;
+const GOOGLE_MODELS=['gemini-3.8-flash-lite-tts','gemini-3.8-flash-tts'];
+const GOOGLE_MODEL_LABELS={'gemini-3.8-flash-lite-tts':'Lite','gemini-3.8-flash-tts':'Flash'};
+const GOOGLE_TZ='America/Los_Angeles', TR_TZ='Europe/Istanbul';
+const G_ACCOUNTS_KEY='gaccounts', G_LIMITS_KEY='glimits', G_ORDER_KEY='gmodelorder';
+const G_MODE_KEY='gmode', G_MANUAL_KEY='gmanual', G_VOICES_KEY='gvoicescache';
+
 let chunks=[],stopReq=false,ctls=new Map();
+let epoch=0, runSeq=0, gQuotaNoticeAt=0;
+let quotaResetCache={at:0,day:''};
 const P=()=>document.body.dataset.p;
-const curKey=()=>({kie:$('kkey'),google:$('gkey')}[P()]||$('key')).value.trim();
+function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
+
+// ---- timeout-aware fetch -------------------------------------------------
+function abortError(){
+  try{return new DOMException('Aborted','AbortError')}catch(e){const x=new Error('Aborted');x.name='AbortError';return x}
+}
+function sleepAbort(ms,ctl){
+  return new Promise((res,rej)=>{
+    if(ctl.signal.aborted)return rej(abortError());
+    const t=setTimeout(()=>{cleanup();res()},ms);
+    const onAbort=()=>{clearTimeout(t);cleanup();rej(abortError())};
+    function cleanup(){try{ctl.signal.removeEventListener('abort',onAbort)}catch(e){}}
+    ctl.signal.addEventListener('abort',onAbort,{once:true});
+  });
+}
+function mergedSignal(signals){
+  const list=signals.filter(Boolean);
+  if(!list.length)return undefined;
+  if(AbortSignal.any)return AbortSignal.any(list);
+  const c=new AbortController();
+  const onAbort=()=>{try{c.abort()}catch(e){}};
+  list.forEach(s=>{if(s.aborted)onAbort();else s.addEventListener('abort',onAbort,{once:true})});
+  return c.signal;
+}
+async function fetchT(url,opts={},ms=GOOGLE_TIMEOUT){
+  const ctl=new AbortController();
+  let timedOut=false;
+  const timer=setTimeout(()=>{timedOut=true;try{ctl.abort()}catch(e){}},ms);
+  const userSignal=opts.signal;
+  const signal=mergedSignal([userSignal,ctl.signal]);
+  try{
+    return await fetch(url,{...opts,signal});
+  }catch(e){
+    if(timedOut){
+      const x=new Error('انتهت المهلة');
+      x.name='TimeoutError';x.timeout=true;x.status=0;x.body='انتهت مهلة الانتظار';
+      throw x;
+    }
+    if(e&&e.name==='AbortError')throw e;
+    throw e;
+  }finally{clearTimeout(timer)}
+}
+
+// Google keys are resolved later (multi-account model); this function is
+// intentionally a thin wrapper so callers do not need to know the mode.
+const curKey=()=>P()==='kie'?$('kkey').value.trim():P()==='google'?googleAnyKey():$('key').value.trim();
+
+// ---- generation lifecycle ------------------------------------------------
+function cancelAll(showCancelled){
+  const active=[...ctls.keys()];
+  epoch++;
+  stopReq=true;
+  ctls.forEach(ctl=>{try{ctl.abort()}catch(e){}});
+  ctls.clear();
+  chunks.forEach((_,i)=>{
+    const btn=document.querySelector(`[data-g="${i}"]`);
+    if(btn)btn.disabled=false;
+    const cancel=document.querySelector(`[data-c="${i}"]`);
+    if(cancel)cancel.style.display='none';
+  });
+  chunks.forEach((c,i)=>{
+    const card=$('c'+i);
+    const wasWorking=(card&&card.classList.contains('work'))||active.includes(i);
+    if(wasWorking){
+      const m=$('m'+i);
+      if(c.blob){
+        if(m){m.className='tag ok';m.textContent='تم ✓'}
+        if(card)card.classList.add('done');
+      }else{
+        if(m){m.className='tag';m.textContent='أُلغي'}
+        if(card)card.classList.remove('done');
+      }
+      if(card)card.classList.remove('work','err');
+    }
+  });
+}
+function safeEl(id){return document.getElementById(id)}
+function isAlive(i,c,myEpoch){
+  return epoch===myEpoch && chunks[i]===c;
+}
 
 // ---- theme ----
 function setTheme(t){document.documentElement.dataset.theme=t;try{localStorage.setItem('theme',t)}catch(e){}}
@@ -447,19 +600,33 @@ function closeDrawer(){
 menuBtn.onclick=()=>drawer.classList.contains('show')?closeDrawer():openDrawer();
 $('drawerClose').onclick=closeDrawer;
 drawerBack.onclick=closeDrawer;
+function trapFocus(e,container){
+  const f=[...container.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')];
+  if(!f.length)return;
+  const first=f[0],last=f[f.length-1];
+  if(e.shiftKey&&(document.activeElement===first||!container.contains(document.activeElement))){e.preventDefault();last.focus()}
+  else if(!e.shiftKey&&(document.activeElement===last||!container.contains(document.activeElement))){e.preventDefault();first.focus()}
+}
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
     if($('fsEditor').classList.contains('open')){closeFsEditor();return}
     if($('mergeOverlay').classList.contains('show')){closeMerge();return}
     if($('saveOverlay').classList.contains('show')){closeSaveModal();return}
+    if($('voiceOverlay').classList.contains('show')){
+      $('voiceOverlay').classList.remove('show');
+      $('addVoiceBtn').focus();
+      return;
+    }
     closeDrawer();return;
   }
-  if(e.key==='Tab'&&drawer.classList.contains('show')){
-    const f=[...drawer.querySelectorAll('button:not([disabled])')];
-    if(!f.length)return;
-    const first=f[0],last=f[f.length-1];
-    if(e.shiftKey&&(document.activeElement===first||!drawer.contains(document.activeElement))){e.preventDefault();last.focus()}
-    else if(!e.shiftKey&&(document.activeElement===last||!drawer.contains(document.activeElement))){e.preventDefault();first.focus()}
+  if(e.key==='Tab'){
+    const layer=$('voiceOverlay').classList.contains('show')?$('voiceOverlay')
+      :$('saveOverlay').classList.contains('show')?$('saveOverlay')
+      :$('mergeOverlay').classList.contains('show')?$('mergeOverlay')
+      :$('fsEditor').classList.contains('open')?$('fsEditor')
+      :drawer.classList.contains('show')?drawer:null;
+    if(layer)trapFocus(e,layer);
+    return;
   }
 });
 
@@ -469,12 +636,16 @@ function keyState(){
   try{
     if($('rem').checked)localStorage.setItem('orkey',$('key').value.trim());
     if($('krem').checked)localStorage.setItem('kiekey',$('kkey').value.trim());
-    if($('grem').checked)localStorage.setItem('gkey',$('gkey').value.trim());
     localStorage.setItem('kvoice',$('kvoice').value);localStorage.setItem('kmodel',$('kmodel').value);
-    localStorage.setItem('gvoice',$('gvoice').value);localStorage.setItem('gmodel',$('gmodel').value);localStorage.setItem('gstyle',$('gstyle').value);localStorage.setItem('gdelay',$('gdelay').value);
+    localStorage.setItem('ktemp',$('ktemp').value);localStorage.setItem('kfill',$('kfill').checked?'1':'0');
+    localStorage.setItem('orGvoice',$('orGvoice').value);localStorage.setItem('orgmanual',$('orGvoiceManual').value);
+    localStorage.setItem('gvoice',$('gvoice').value);localStorage.setItem('gmanualvoice',$('gvoiceManual').value);
+    localStorage.setItem('gmodel',$('gmodel').value);localStorage.setItem('gstyle',$('gstyle').value);localStorage.setItem('gdelay',$('gdelay').value);
+    if(typeof saveGoogleAccounts==='function')saveGoogleAccounts();
   }catch(e){}
 }
 function setProvider(p,openBox){
+  if(document.body.dataset.p!==p)cancelAll(false);
   document.body.dataset.p=p;
   $('pOR').classList.toggle('act',p==='or');$('pKie').classList.toggle('act',p==='kie');$('pG').classList.toggle('act',p==='google');
   try{localStorage.setItem('prov',p)}catch(e){}
@@ -486,34 +657,132 @@ $('pOR').onclick=()=>setProvider('or',true);
 $('pKie').onclick=()=>setProvider('kie',true);
 $('pG').onclick=()=>setProvider('google',true);
 $('keybtn').onclick=()=>{const b=$('keybox');b.style.display=b.style.display==='block'?'none':'block'};
-['key','kkey','kvoice','kmodel','gkey','gvoice','gmodel','gstyle','gdelay'].forEach(id=>{$(id).oninput=keyState;$(id).onchange=keyState});
+['key','kkey','kvoice','kmodel','gvoice','gmodel','gstyle','gdelay'].forEach(id=>{$(id).oninput=keyState;$(id).onchange=keyState});
 $('rem').onchange=()=>{if($('rem').checked)keyState();else try{localStorage.removeItem('orkey')}catch(e){}};
 $('krem').onchange=()=>{if($('krem').checked)keyState();else try{localStorage.removeItem('kiekey')}catch(e){}};
-$('grem').onchange=()=>{if($('grem').checked)keyState();else try{localStorage.removeItem('gkey')}catch(e){}};
+$('grem').onchange=()=>{if(!$('grem').checked){try{localStorage.removeItem('gkey')}catch(e){}}saveGoogleAccounts()};
+$('ktemp').oninput=keyState;$('ktemp').onchange=keyState;
+$('kfill').onchange=keyState;
 try{
   const k=localStorage.getItem('orkey');if(k){$('key').value=k;$('rem').checked=true}
   const kk=localStorage.getItem('kiekey');if(kk){$('kkey').value=kk;$('krem').checked=true}
-  const gk=localStorage.getItem('gkey');if(gk){$('gkey').value=gk;$('grem').checked=true}
   const kv=localStorage.getItem('kvoice');if(kv)$('kvoice').value=kv;
   const km=localStorage.getItem('kmodel');if(km)$('kmodel').value=km;
-  const gv=localStorage.getItem('gvoice');if(gv&&[...$('gvoice').options].some(o=>o.value===gv))$('gvoice').value=gv;
   const gm=localStorage.getItem('gmodel');if(gm&&[...$('gmodel').options].some(o=>o.value===gm))$('gmodel').value=gm;
   const gs=localStorage.getItem('gstyle');if(gs)$('gstyle').value=gs;
   const gd=localStorage.getItem('gdelay');if(gd&&[...$('gdelay').options].some(o=>o.value===gd))$('gdelay').value=gd;
+  const kt=localStorage.getItem('ktemp');if(kt!==null&&kt!==''&&Number.isFinite(Number(kt)))$('ktemp').value=kt;
+  const kf=localStorage.getItem('kfill');if(kf==='1')$('kfill').checked=true;
 }catch(e){}
 
-// ---- voices (OpenRouter; saved locally, with a default one preloaded) ----
+// ---- voices & Google accounts/quota --------------------------------------
 const DEFAULT_VOICES=[{name:'ناشينال',id:'4b06a9b39328408f95420f1ff675cd6d'}];
 const GOOGLE_TTS_VOICES=[['Zephyr','مشرق'],['Puck','شاب مرح'],['Charon','راوٍ معلوماتي'],['Kore','حازم'],['Fenrir','متحمس'],['Leda','شبابي'],['Orus','حازم'],['Aoede','خفيف'],['Callirrhoe','هادئ'],['Autonoe','مشرق'],['Enceladus','ناعم النَفَس'],['Iapetus','واضح'],['Umbriel','هادئ'],['Algieba','سلس'],['Despina','سلس'],['Erinome','واضح'],['Algenib','أجش'],['Rasalgethi','معلوماتي'],['Laomedeia','متحمس'],['Achernar','ناعم'],['Alnilam','حازم'],['Schedar','متّزن'],['Gacrux','ناضج'],['Pulcherrima','جريء'],['Achird','ودود'],['Zubenelgenubi','عفوي'],['Vindemiatrix','لطيف'],['Sadachbia','حيوي'],['Sadaltager','خبير'],['Sulafat','دافئ']];
-const googleVoiceNames=()=>GOOGLE_TTS_VOICES.map(v=>v[0]);
+const GOOGLE_STATIC_CATALOG=GOOGLE_TTS_VOICES.map(([id,desc])=>({id,name:id,desc,lang:'',gender:'',type:'prebuilt'}));
+let gVoiceCache={ts:0,voices:[]};
+
+function loadGoogleVoiceCache(){
+  try{
+    const c=JSON.parse(localStorage.getItem(G_VOICES_KEY)||'null');
+    if(c&&Array.isArray(c.voices))gVoiceCache={ts:Number(c.ts)||0,voices:c.voices.map(normalizeGoogleVoice).filter(Boolean)};
+  }catch(e){}
+}
+function normalizeGoogleVoice(v){
+  if(!v)return null;
+  if(typeof v==='string')return {id:v,name:v,desc:'',lang:'',gender:'',type:''};
+  const id=v.id||v.voice_id||v.voiceId||v.name||v.display_name||v.displayName||'';
+  if(!id)return null;
+  const name=v.display_name||v.displayName||v.name||id;
+  const lr=v.language_code||v.languageCode||v.language_codes||v.languageCodes||v.lang||v.language||'';
+  return {id:String(id),name:String(name),desc:String(v.description||v.desc||''),lang:Array.isArray(lr)?lr.join(', '):String(lr||''),gender:String(v.gender||''),type:String(v.type||'')};
+}
+function genderLabel(g){
+  const s=String(g||'').toLowerCase();
+  if(s==='female')return 'أنثى';
+  if(s==='male')return 'ذكر';
+  if(s==='neutral')return 'محايد';
+  return g||'';
+}
+function getGoogleVoiceCatalog(){
+  const base=GOOGLE_STATIC_CATALOG.map(v=>({...v}));
+  const byId=new Map(base.map(v=>[v.id,v]));
+  (gVoiceCache.voices||[]).forEach(raw=>{
+    const v=normalizeGoogleVoice(raw);if(!v)return;
+    if(byId.has(v.id)){const old=byId.get(v.id);Object.assign(old,v,{desc:v.desc||old.desc});}
+    else{base.push(v);byId.set(v.id,v)}
+  });
+  return base;
+}
+function googleVoiceNames(){return getGoogleVoiceCatalog().map(v=>v.id)}
+function voiceLabel(v){
+  let s=v.name||v.id;
+  if(v.desc)s+=' — '+v.desc;
+  if(v.lang)s+=' · '+v.lang;
+  if(v.gender)s+=' · '+genderLabel(v.gender);
+  return s;
+}
+function getGoogleVoice(){return ($('gvoiceManual').value.trim()||$('gvoice').value||'Kore')}
+function getOrGeminiVoice(){return ($('orGvoiceManual').value.trim()||$('orGvoice').value||'Kore')}
+
+function renderGoogleVoiceFilterOptions(catalog){
+  const langSel=$('gvoiceLang'),genSel=$('gvoiceGender');
+  if(!langSel||!genSel)return;
+  const langs=[...new Set(catalog.flatMap(v=>String(v.lang||'').split(',').map(s=>s.trim()).filter(Boolean)))].sort();
+  const gens=[...new Set(catalog.map(v=>v.gender).filter(Boolean))];
+  const lv=langSel.value,gv=genSel.value;
+  langSel.innerHTML='<option value="">كل اللغات</option>'+langs.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
+  genSel.innerHTML='<option value="">كل الأجناس</option>'+gens.map(x=>`<option value="${esc(x)}">${esc(genderLabel(x))}</option>`).join('');
+  langSel.value=langs.includes(lv)?lv:'';
+  genSel.value=gens.includes(gv)?gv:'';
+}
+function renderGoogleVoicePicker(preferred){
+  const catalog=getGoogleVoiceCatalog();
+  renderGoogleVoiceFilterOptions(catalog);
+  const q=($('gvoiceSearch').value||'').trim().toLowerCase();
+  const lang=$('gvoiceLang').value||'';
+  const gen=$('gvoiceGender').value||'';
+  const list=catalog.filter(v=>{
+    const hay=(v.id+' '+v.name+' '+v.desc+' '+v.lang+' '+v.gender).toLowerCase();
+    const langs=String(v.lang||'').split(',').map(s=>s.trim());
+    return (!q||hay.includes(q))&&(!lang||langs.includes(lang))&&(!gen||v.gender===gen);
+  });
+  const cur=preferred||$('gvoice').value;
+  $('gvoice').innerHTML=list.length
+    ?list.map(v=>`<option value="${esc(v.id)}">${esc(voiceLabel(v))}</option>`).join('')
+    :'<option value="">لا توجد نتائج</option>';
+  if(list.some(v=>v.id===cur))$('gvoice').value=cur;
+  else if(list.length)$('gvoice').value=list[0].id;
+  else $('gvoice').value='';
+}
+function renderGoogleVoiceOptions(preferred){
+  const catalog=getGoogleVoiceCatalog();
+  const ocur=$('orGvoice').value;
+  $('orGvoice').innerHTML=catalog.map(v=>`<option value="${esc(v.id)}">${esc(voiceLabel(v))}</option>`).join('');
+  if(catalog.some(v=>v.id===ocur))$('orGvoice').value=ocur;
+  else $('orGvoice').value=catalog.some(v=>v.id==='Kore')?'Kore':(catalog[0]?.id||'');
+  renderGoogleVoicePicker(preferred);
+}
+function fillOrGvoice(){renderGoogleVoiceOptions()}
+
 function loadVoices(){try{const v=JSON.parse(localStorage.getItem('voices')||'null');return (v&&v.length)?v:DEFAULT_VOICES}catch(e){return DEFAULT_VOICES}}
 function saveVoices(v){try{localStorage.setItem('voices',JSON.stringify(v))}catch(e){}}
 let voices=loadVoices();
-// OpenRouter model: free (custom voices) or a Gemini TTS model (Google voices + PCM request)
+let lastOrFamily=null;
 function isOrGemini(){const m=$('model').value;return /gemini/i.test(m)&&/tts/i.test(m)}
-function fillOrGvoice(){$('orGvoice').innerHTML=GOOGLE_TTS_VOICES.map(([n,d])=>`<option value="${n}"${n==='Kore'?' selected':''}>${n} — ${d}</option>`).join('')}
+function orFamily(){return isOrGemini()?'gemini':'fish'}
 function setOrModel(){
-  const g=isOrGemini();
+  const fam=orFamily();
+  if(lastOrFamily&&lastOrFamily!==fam){
+    const allowed=fam==='gemini'?googleVoiceNames():voices.map(v=>v.id);
+    let cleared=0;
+    chunks.forEach(c=>{if(c.voice&&!allowed.includes(c.voice)){c.voice='';cleared++}});
+    if(cleared){
+      renderVoiceSelects();
+      toast(`أُزيل الصوت غير المتوافق من ${cleared} مقطعاً`);
+    }
+  }
+  lastOrFamily=fam;
+  const g=fam==='gemini';
   $('orVoiceFree').style.display=g?'none':'flex';
   $('orVoiceG').style.display=g?'flex':'none';
   $('orHint').textContent=g
@@ -521,6 +790,7 @@ function setOrModel(){
     :'المفتاح يبقى في متصفحك ويُرسل إلى openrouter.ai فقط. الصوت المختار هنا افتراضي لكل الصناديق، ويمكن لكل صندوق اختيار صوت مختلف.';
   try{localStorage.setItem('ormodel',$('model').value);localStorage.setItem('orgvoice',$('orGvoice').value)}catch(e){}
   renderVoiceSelects();
+  chunks.forEach((c,i)=>{const sel=document.querySelector(`select[data-v="${i}"]`);if(sel)sel.value=c.voice||''});
 }
 function renderVoiceSelects(){
   const opts=(isOrGemini()?googleVoiceNames().map(n=>[n,n]):voices.map(v=>[v.name,v.id]))
@@ -534,15 +804,442 @@ function renderVoiceSelects(){
     if([...sel.options].some(o=>o.value===kept))sel.value=kept;
   });
 }
-fillOrGvoice();
-try{const om=localStorage.getItem('ormodel');if(om&&[...$('model').options].some(o=>o.value===om))$('model').value=om;
-  const og=localStorage.getItem('orgvoice');if(og&&[...$('orGvoice').options].some(o=>o.value===og))$('orGvoice').value=og;}catch(e){}
-setOrModel();
-$('model').onchange=()=>{setOrModel();markDirty()};
-$('orGvoice').onchange=()=>markDirty();
-$('addVoiceBtn').onclick=()=>{$('vName').value='';$('vId').value='';$('voiceOverlay').classList.add('show');$('vName').focus()};
+
+// ---- Google multi-account model -----------------------------------------
+let gAccounts=[],gLimits={},gModelOrder=[],gMode='auto',gManual={accountId:'',model:''};
+let toastTimer=null;
+function toast(msg){
+  const t=$('toast');if(!t)return;
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),3800);
+}
+function gUid(){
+  try{if(crypto&&crypto.randomUUID)return 'ga_'+crypto.randomUUID()}
+  catch(e){}
+  return 'ga_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8);
+}
+function newGAccount(name,key){
+  return {id:gUid(),name:name||('حساب '+(gAccounts.length+1)),key:key||'',enabled:true,usage:{},exhausted:{},overrides:{}};
+}
+function normalizeGAccount(a,i){
+  return {
+    id:String((a&&a.id)||gUid()),name:String((a&&a.name)||('حساب '+(i+1))),key:String((a&&a.key)||''),
+    enabled:!(a&&a.enabled===false),
+    usage:(a&&a.usage&&typeof a.usage==='object')?a.usage:{},
+    exhausted:(a&&a.exhausted&&typeof a.exhausted==='object')?a.exhausted:{},
+    overrides:(a&&a.overrides&&typeof a.overrides==='object')?a.overrides:{}
+  };
+}
+function gLabel(m){return GOOGLE_MODEL_LABELS[m]||m}
+function ptDay(date){
+  date=date||new Date();
+  const parts=new Intl.DateTimeFormat('en-US',{timeZone:GOOGLE_TZ,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(date);
+  const o={};parts.forEach(p=>{if(p.type!=='literal')o[p.type]=p.value});
+  return o.year+'-'+o.month+'-'+o.day;
+}
+function nextQuotaReset(now){
+  now=now||new Date();
+  const start=now.getTime(),today=ptDay(now);
+  let hi=start+36*3600*1000,t=start;
+  while(t<hi&&ptDay(new Date(t))===today)t+=15*60*1000;
+  hi=Math.min(hi,t);
+  let lo=Math.max(start,hi-15*60*1000);
+  while(hi-lo>1000){
+    const mid=Math.floor((lo+hi)/2);
+    if(ptDay(new Date(mid))===today)lo=mid;else hi=mid;
+  }
+  return new Date(hi);
+}
+function getQuotaReset(now){
+  now=now||new Date();
+  const day=ptDay(now),t=now.getTime();
+  if(quotaResetCache.at>t&&quotaResetCache.day===day)return new Date(quotaResetCache.at);
+  const r=nextQuotaReset(now);
+  quotaResetCache={at:r.getTime(),day};
+  return r;
+}
+function fmtDur(ms){
+  let s=Math.max(0,Math.floor(ms/1000));
+  const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),ss=s%60;
+  return [h,m,ss].map(x=>String(x).padStart(2,'0')).join(':');
+}
+function fmtTurkeyTime(d){
+  return new Intl.DateTimeFormat('en-GB',{timeZone:TR_TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(d);
+}
+function ensureQuotaDay(){
+  const day=ptDay();let changed=false;
+  gAccounts.forEach(a=>{
+    if(!a.usage||typeof a.usage!=='object')a.usage={};
+    if(!a.exhausted||typeof a.exhausted!=='object')a.exhausted={};
+    GOOGLE_MODELS.forEach(m=>{
+      const u=a.usage[m];
+      if(u&&u.day!==day){u.day=day;u.used=0;changed=true}
+      if(a.exhausted[m]&&a.exhausted[m]!==day){delete a.exhausted[m];changed=true}
+    });
+  });
+  return changed;
+}
+function accountLimit(a,m){
+  const o=a&&a.overrides?a.overrides[m]:undefined;
+  if(typeof o==='number'&&Number.isFinite(o)&&o>=0)return o;
+  return typeof gLimits[m]==='number'&&Number.isFinite(gLimits[m])&&gLimits[m]>=0?gLimits[m]:10;
+}
+function accountUsed(a,m){
+  const u=a&&a.usage?a.usage[m]:null;
+  return u&&u.day===ptDay()?Math.max(0,Number(u.used)||0):0;
+}
+function accountExhausted(a,m){return !!(a&&a.exhausted&&a.exhausted[m]===ptDay())}
+function accountRemaining(a,m){return accountExhausted(a,m)?0:Math.max(0,accountLimit(a,m)-accountUsed(a,m))}
+function saveGoogleAccounts(){
+  try{
+    const remember=!!($('grem')&&$('grem').checked);
+    const data=gAccounts.map(a=>({...a,key:remember?a.key:''}));
+    localStorage.setItem(G_ACCOUNTS_KEY,JSON.stringify(data));
+    if(remember&&gAccounts[0]&&gAccounts[0].key)localStorage.setItem('gkey',gAccounts[0].key);
+    else localStorage.removeItem('gkey');
+    localStorage.setItem(G_LIMITS_KEY,JSON.stringify(gLimits));
+    localStorage.setItem(G_ORDER_KEY,JSON.stringify(gModelOrder));
+    localStorage.setItem(G_MODE_KEY,gMode);
+    localStorage.setItem(G_MANUAL_KEY,JSON.stringify(gManual));
+  }catch(e){}
+}
+function googleAnyKey(){
+  if(gMode==='manual'){
+    let a=gAccounts.find(x=>x.id===gManual.accountId);
+    if(a&&!a.enabled)a=null;
+    a=a||gAccounts.find(x=>x.enabled);
+    return a?a.key:'';
+  }
+  const a=gAccounts.find(x=>x.enabled&&x.key);
+  return a?a.key:'';
+}
+function pickSlot(){
+  ensureQuotaDay();
+  if(gMode==='manual'){
+    let a=gAccounts.find(x=>x.id===gManual.accountId);
+    if(a&&!a.enabled)a=null;
+    a=a||gAccounts.find(x=>x.enabled);
+    const m=gManual.model||$('gmodel').value||GOOGLE_MODELS[0];
+    if(!a||!a.key)return null;
+    return {account:a,model:m,overLimit:accountExhausted(a,m)||accountUsed(a,m)>=accountLimit(a,m)};
+  }
+  for(const a of gAccounts){
+    if(!a.enabled||!a.key)continue;
+    for(const m of gModelOrder){
+      if(accountExhausted(a,m))continue;
+      if(accountUsed(a,m)<accountLimit(a,m))return {account:a,model:m};
+    }
+  }
+  return null;
+}
+function reserveSlot(slot){
+  ensureQuotaDay();
+  const day=ptDay();
+  if(!slot.account.usage)slot.account.usage={};
+  const u=slot.account.usage[slot.model]||(slot.account.usage[slot.model]={day,used:0});
+  if(u.day!==day){u.day=day;u.used=0}
+  u.used=(Number(u.used)||0)+1;
+  saveGoogleAccounts();updateGoogleQuotaUI();
+}
+function releaseSlot(slot){
+  const u=slot&&slot.account&&slot.account.usage?slot.account.usage[slot.model]:null;
+  if(u&&u.day===ptDay()&&u.used>0){u.used--;saveGoogleAccounts();updateGoogleQuotaUI()}
+}
+function acquireGoogleSlot(){
+  ensureQuotaDay();
+  const slot=pickSlot();
+  if(!slot)return null;
+  if(slot.overLimit&&Date.now()-gQuotaNoticeAt>8000){
+    gQuotaNoticeAt=Date.now();
+    toast(`تنبيه: ${slot.account.name} · ${gLabel(slot.model)} استُنفد، لكن الوضع اليدوي يسمح بالمتابعة.`);
+  }
+  reserveSlot(slot);
+  return slot;
+}
+function markGoogleExhausted(slot){
+  slot.account.exhausted=slot.account.exhausted||{};
+  slot.account.exhausted[slot.model]=ptDay();
+  saveGoogleAccounts();updateGoogleQuotaUI();
+}
+function showNoSlots(){
+  const reset=getQuotaReset();
+  const msg=`لا توجد حصة Google متاحة الآن. تتصفّر الحصة بعد ${fmtDur(reset-new Date())} (الساعة ${fmtTurkeyTime(reset)} بتوقيت تركيا). المقاطع المتبقية معلّقة ويمكنك متابعة «توليد الكل» لاحقاً.`;
+  $('savemsg').textContent=msg;
+  toast(msg);
+}
+function updateResetCountdown(){
+  const el=$('gResetCountdown');if(!el)return;
+  const now=new Date(),reset=getQuotaReset(now);
+  el.textContent=`تتصفّر الحصة بعد ${fmtDur(reset-now)} (الساعة ${fmtTurkeyTime(reset)} بتوقيت تركيا)`;
+}
+function quotaAccountHTML(a){
+  const day=ptDay();
+  return GOOGLE_MODELS.map(m=>{
+    const lim=accountLimit(a,m),rem=accountRemaining(a,m);
+    const ex=a.exhausted&&a.exhausted[m]===day;
+    const st=!a.enabled?'<span class="tag">معطّل</span>'
+      :(!a.key?'<span class="g-acc-bad">بلا مفتاح</span>'
+      :(ex?'<span class="g-acc-bad">استُنفد</span>':(rem<=0?'<span class="g-acc-bad">انتهت الحصة</span>':'<span class="g-acc-ok">نشط</span>')));
+    return `<div class="g-acc-line"><b>${gLabel(m)}</b> باقي ${rem} من ${lim} · ${st}
+      <button class="actbtn" type="button" data-edit="${m}">تعديل العدّاد</button>
+      <button class="actbtn" type="button" data-reset="${m}">تصفير</button></div>`;
+  }).join('');
+}
+function renderGoogleManual(){
+  const sel=$('gManualAccount');if(!sel)return;
+  const cur=gManual.accountId;
+  const list=gAccounts.filter(a=>a.enabled);
+  sel.innerHTML=list.length
+    ?list.map(a=>`<option value="${esc(a.id)}"${a.id===cur?' selected':''}>${esc(a.name)}</option>`).join('')
+    :'<option value="">لا حسابات مفعّلة</option>';
+  if(!list.some(a=>a.id===cur)){
+    gManual.accountId=list[0]?list[0].id:'';
+    if(gManual.accountId)sel.value=gManual.accountId;
+  }
+  $('gManualRow').style.display=gMode==='manual'?'flex':'none';
+  if(gManual.model&&[...$('gmodel').options].some(o=>o.value===gManual.model))$('gmodel').value=gManual.model;
+}
+function renderGoogleModelOrder(){
+  const host=$('gModelOrder');if(!host)return;
+  host.innerHTML=gModelOrder.map((m,idx)=>`<div class="g-model-row" data-model="${esc(m)}">
+    <b>${gLabel(m)}</b>
+    <span>الحد</span><input type="number" min="0" step="1" data-limit="${esc(m)}" value="${gLimits[m]}" aria-label="حد ${gLabel(m)}">
+    <span class="grow" data-mremain="${esc(m)}"></span>
+    <button class="actbtn" type="button" data-up="${esc(m)}" ${idx===0?'disabled':''}>▲</button>
+    <button class="actbtn" type="button" data-down="${esc(m)}" ${idx===gModelOrder.length-1?'disabled':''}>▼</button>
+  </div>`).join('');
+}
+function updateGoogleQuotaUI(){
+  if(!$('gQuotaSummary'))return;
+  const usable=gAccounts.filter(a=>a.enabled&&a.key);
+  const totals=GOOGLE_MODELS.map(m=>{
+    const rem=usable.reduce((s,a)=>s+accountRemaining(a,m),0);
+    return `${gLabel(m)}: ${rem}`;
+  });
+  $('gQuotaSummary').innerHTML=`<b>إجمالي المتبقي:</b> ${totals.join(' · ')} <span class="tag">(الحسابات المفعّلة بمفتاح)</span>`;
+  document.querySelectorAll('#gAccounts [data-acc]').forEach(card=>{
+    const a=gAccounts.find(x=>x.id===card.dataset.acc);if(!a)return;
+    const q=card.querySelector('[data-quota]');
+    if(q)q.innerHTML=quotaAccountHTML(a);
+  });
+  gModelOrder.forEach(m=>{
+    const el=document.querySelector(`#gModelOrder [data-mremain="${m}"]`);
+    if(el){
+      const rem=usable.reduce((s,a)=>s+accountRemaining(a,m),0);
+      el.textContent=`متبقي ${rem}`;
+    }
+  });
+  const n=gAccounts.filter(a=>a.enabled&&a.key).length;
+  const ks=$('gkeyState');
+  if(ks){ks.textContent=n?`${n} حساب نشط`:'لا مفاتيح';ks.className=n?'tag on':'tag bad'}
+  const mi=$('gManualInfo');
+  if(mi){
+    const a=gAccounts.find(x=>x.id===gManual.accountId)||gAccounts.find(x=>x.enabled);
+    const mm=gManual.model||$('gmodel').value||GOOGLE_MODELS[0];
+    if(a){const rem=accountRemaining(a,mm),lim=accountLimit(a,mm);mi.textContent=`المتبقي: ${rem} من ${lim}`+(accountExhausted(a,mm)?' · استُنفد':'')+(a.key?'':' · بلا مفتاح')}
+    else mi.textContent='';
+  }
+}
+function renderGoogleAccounts(){
+  const host=$('gAccounts');if(!host)return;
+  host.innerHTML=gAccounts.map((a,i)=>`<div class="g-account" data-acc="${esc(a.id)}">
+    <div class="g-acc-head">
+      <input class="g-acc-name" value="${esc(a.name)}" aria-label="اسم الحساب ${i+1}">
+      <input class="g-acc-key" type="password" value="${esc(a.key)}" placeholder="مفتاح Gemini API (AIza...)" dir="ltr" autocomplete="off">
+      <label><input type="checkbox" class="g-acc-enabled" ${a.enabled?'checked':''}> مفعّل</label>
+      <button class="ghost mini g-acc-del" type="button">حذف</button>
+    </div>
+    <div class="g-acc-quota" data-quota>${quotaAccountHTML(a)}</div>
+    <div class="g-acc-ov">حد خاص:
+      ${GOOGLE_MODELS.map(m=>`<span>${gLabel(m)} <input type="number" min="0" step="1" data-ov="${esc(m)}" value="${esc(a.overrides&&a.overrides[m]!==undefined?String(a.overrides[m]):'')}" placeholder="تلقائي"></span>`).join(' ')}
+    </div>
+  </div>`).join('');
+  renderGoogleManual();
+  updateGoogleQuotaUI();
+}
+function loadGoogleState(){
+  loadGoogleVoiceCache();
+  let raw=null;try{raw=JSON.parse(lsGet(G_ACCOUNTS_KEY)||'null')}catch(e){}
+  if(Array.isArray(raw)&&raw.length)gAccounts=raw.map(normalizeGAccount);
+  else gAccounts=[newGAccount('حساب 1',lsGet('gkey')||'')];
+  // Migrate a legacy single key even if an empty accounts list was stored.
+  const legacy=lsGet('gkey')||'';
+  if(legacy&&!gAccounts.some(a=>a.key))gAccounts[0].key=legacy;
+  try{
+    const l=JSON.parse(lsGet(G_LIMITS_KEY)||'null');
+    if(l&&typeof l==='object')gLimits=l;
+  }catch(e){}
+  GOOGLE_MODELS.forEach(m=>{if(typeof gLimits[m]!=='number'||!Number.isFinite(gLimits[m])||gLimits[m]<0)gLimits[m]=10});
+  try{
+    const o=JSON.parse(lsGet(G_ORDER_KEY)||'null');
+    if(Array.isArray(o))gModelOrder=[...new Set(o.filter(m=>GOOGLE_MODELS.includes(m)))];
+  }catch(e){}
+  if(!Array.isArray(gModelOrder)||!gModelOrder.length)gModelOrder=[...GOOGLE_MODELS];
+  GOOGLE_MODELS.forEach(m=>{if(!gModelOrder.includes(m))gModelOrder.push(m)});
+  gMode=lsGet(G_MODE_KEY)==='manual'?'manual':'auto';
+  try{
+    const m=JSON.parse(lsGet(G_MANUAL_KEY)||'null');
+    if(m&&typeof m==='object')gManual=m;
+  }catch(e){}
+  if(!gAccounts.some(a=>a.id===gManual.accountId))gManual.accountId=gAccounts[0]?gAccounts[0].id:'';
+  if(!GOOGLE_MODELS.includes(gManual.model))gManual.model=$('gmodel').value||GOOGLE_MODELS[0];
+  $('grem').checked=gAccounts.some(a=>a.key);
+  $('gmode').value=gMode;
+  ensureQuotaDay();
+  saveGoogleAccounts();
+  renderGoogleAccounts();
+  renderGoogleModelOrder();
+  $('gvoiceManual').value=lsGet('gmanualvoice')||'';
+  $('orGvoiceManual').value=lsGet('orgmanual')||'';
+  const gv=lsGet('gvoice')||'Kore';
+  renderGoogleVoiceOptions(gv);
+  const og=lsGet('orgvoice');
+  if(og&&[...$('orGvoice').options].some(o=>o.value===og))$('orGvoice').value=og;
+  $('gmodel').value=gManual.model;
+  renderGoogleManual();
+  updateGoogleQuotaUI();
+  updateResetCountdown();
+  setInterval(updateResetCountdown,1000);
+  setInterval(()=>{if(ensureQuotaDay()){saveGoogleAccounts();updateGoogleQuotaUI();}},60000);
+}
+
+// ---- Google UI bindings --------------------------------------------------
+$('gAddAccount').onclick=()=>{
+  const a=newGAccount('حساب '+(gAccounts.length+1),'');
+  gAccounts.push(a);
+  if(!gManual.accountId)gManual.accountId=a.id;
+  saveGoogleAccounts();renderGoogleAccounts();
+  const last=document.querySelector(`#gAccounts [data-acc="${a.id}"] .g-acc-key`);
+  if(last)last.focus();
+};
+$('gmode').onchange=()=>{
+  gMode=$('gmode').value==='manual'?'manual':'auto';
+  if(gMode==='manual'&&!gAccounts.some(a=>a.id===gManual.accountId))gManual.accountId=gAccounts[0]?gAccounts[0].id:'';
+  saveGoogleAccounts();renderGoogleManual();updateGoogleQuotaUI();
+};
+$('gManualAccount').onchange=()=>{
+  gManual.accountId=$('gManualAccount').value;
+  saveGoogleAccounts();updateGoogleQuotaUI();
+};
+$('gmodel').addEventListener('change',()=>{
+  gManual.model=$('gmodel').value;
+  saveGoogleAccounts();updateGoogleQuotaUI();
+});
+$('gAccounts').addEventListener('input',e=>{
+  const card=e.target.closest('[data-acc]');if(!card)return;
+  const a=gAccounts.find(x=>x.id===card.dataset.acc);if(!a)return;
+  if(e.target.classList.contains('g-acc-name')){a.name=e.target.value;saveGoogleAccounts()}
+  else if(e.target.classList.contains('g-acc-key')){a.key=e.target.value;saveGoogleAccounts();keyState();updateGoogleQuotaUI()}
+});
+$('gAccounts').addEventListener('change',e=>{
+  const card=e.target.closest('[data-acc]');if(!card)return;
+  const a=gAccounts.find(x=>x.id===card.dataset.acc);if(!a)return;
+  if(e.target.classList.contains('g-acc-enabled')){
+    a.enabled=e.target.checked;saveGoogleAccounts();renderGoogleAccounts();
+  }else if(e.target.classList.contains('g-acc-name')){
+    a.name=e.target.value.trim()||a.name;saveGoogleAccounts();renderGoogleManual();
+  }else if(e.target.matches('[data-ov]')){
+    if(!a.overrides)a.overrides={};
+    const v=e.target.value.trim();
+    if(v==='')delete a.overrides[e.target.dataset.ov];
+    else a.overrides[e.target.dataset.ov]=Math.max(0,Number(v)||0);
+    saveGoogleAccounts();updateGoogleQuotaUI();
+  }
+});
+$('gAccounts').addEventListener('click',e=>{
+  const card=e.target.closest('[data-acc]');if(!card)return;
+  const a=gAccounts.find(x=>x.id===card.dataset.acc);if(!a)return;
+  if(e.target.classList.contains('g-acc-del')){
+    if(!confirm(`حذف «${a.name}»؟`))return;
+    gAccounts=gAccounts.filter(x=>x.id!==a.id);
+    if(gManual.accountId===a.id)gManual.accountId=gAccounts[0]?gAccounts[0].id:'';
+    saveGoogleAccounts();renderGoogleAccounts();renderGoogleModelOrder();
+    return;
+  }
+  const edit=e.target.closest('[data-edit]');
+  if(edit){
+    const m=edit.dataset.edit;
+    const v=prompt(`عدد الطلبات المستخدمة اليوم لـ${gLabel(m)} في «${a.name}» (0–999):`,String(accountUsed(a,m)));
+    if(v===null)return;
+    const n=Math.max(0,Math.min(999,Math.round(Number(v)||0)));
+    if(!a.usage)a.usage={};
+    a.usage[m]={day:ptDay(),used:n};
+    if(a.exhausted)delete a.exhausted[m];
+    saveGoogleAccounts();updateGoogleQuotaUI();
+    return;
+  }
+  const reset=e.target.closest('[data-reset]');
+  if(reset){
+    const m=reset.dataset.reset;
+    if(!a.usage)a.usage={};
+    a.usage[m]={day:ptDay(),used:0};
+    if(a.exhausted)delete a.exhausted[m];
+    saveGoogleAccounts();updateGoogleQuotaUI();
+  }
+});
+$('gModelOrder').addEventListener('change',e=>{
+  const inp=e.target.closest('[data-limit]');if(!inp)return;
+  const m=inp.dataset.limit;
+  gLimits[m]=Math.max(0,Math.round(Number(inp.value)||0));
+  saveGoogleAccounts();updateGoogleQuotaUI();
+});
+$('gModelOrder').addEventListener('click',e=>{
+  const up=e.target.closest('[data-up]'),down=e.target.closest('[data-down]');
+  const m=up?up.dataset.up:(down?down.dataset.down:null);if(!m)return;
+  const i=gModelOrder.indexOf(m);if(i<0)return;
+  const j=up?i-1:i+1;
+  if(j<0||j>=gModelOrder.length)return;
+  [gModelOrder[i],gModelOrder[j]]=[gModelOrder[j],gModelOrder[i]];
+  saveGoogleAccounts();renderGoogleModelOrder();updateGoogleQuotaUI();
+});
+$('gRefreshVoices').onclick=async()=>{
+  const key=googleAnyKey();
+  if(!key)return alert('أضف مفتاح حساب Google أولاً.');
+  const btn=$('gRefreshVoices'),old=btn.textContent;
+  btn.disabled=true;btn.textContent='جارٍ التحديث…';
+  try{
+    const out=[];let token='',pages=0;
+    do{
+      const url='https://generativelanguage.googleapis.com/v1beta/voices?page_size=1000'+(token?'&page_token='+encodeURIComponent(token):'');
+      const r=await fetchT(url,{headers:{'x-goog-api-key':key}},GOOGLE_TIMEOUT);
+      const raw=await r.text();let j={};
+      try{j=JSON.parse(raw)}catch(e){}
+      if(!r.ok)throw new Error((j.error&&j.error.message)||raw||('HTTP '+r.status));
+      const arr=Array.isArray(j.voices)?j.voices:(Array.isArray(j.voice)?j.voice:[]);
+      arr.forEach(v=>{const n=normalizeGoogleVoice(v);if(n)out.push(n)});
+      token=j.next_page_token||j.nextPageToken||'';
+      pages++;
+    }while(token&&pages<30);
+    if(!out.length)throw new Error('لم يُرجع Google أي أصوات.');
+    const dedup=[];const seen=new Set();
+    out.forEach(v=>{if(!seen.has(v.id)){seen.add(v.id);dedup.push(v)}});
+    gVoiceCache={ts:Date.now(),voices:dedup};
+    try{localStorage.setItem(G_VOICES_KEY,JSON.stringify(gVoiceCache))}catch(e){}
+    renderGoogleVoiceOptions();renderVoiceSelects();keyState();
+    toast(`تم تحديث ${dedup.length} صوتاً من Google`);
+  }catch(e){
+    alert('تعذّر تحديث الأصوات: '+(e&&e.message?e.message:e));
+  }finally{btn.disabled=false;btn.textContent=old}
+};
+$('gvoiceSearch').oninput=()=>renderGoogleVoicePicker();
+$('gvoiceLang').onchange=()=>renderGoogleVoicePicker();
+$('gvoiceGender').onchange=()=>renderGoogleVoicePicker();
+$('gvoice').addEventListener('change',()=>{
+  $('gvoiceManual').value='';try{localStorage.removeItem('gmanualvoice')}catch(e){}
+  keyState();
+});
+$('gvoiceManual').oninput=keyState;
+$('orGvoice').addEventListener('change',()=>{
+  $('orGvoiceManual').value='';try{localStorage.removeItem('orgmanual')}catch(e){}
+  keyState();markDirty();
+});
+$('orGvoiceManual').oninput=()=>{try{localStorage.setItem('orgmanual',$('orGvoiceManual').value)}catch(e){}markDirty()};
 $('vCancel').onclick=()=>$('voiceOverlay').classList.remove('show');
 $('voiceOverlay').onclick=e=>{if(e.target.id==='voiceOverlay')$('voiceOverlay').classList.remove('show')};
+
+$('model').onchange=()=>{setOrModel();markDirty()};
+$('addVoiceBtn').onclick=()=>{$('vName').value='';$('vId').value='';$('voiceOverlay').classList.add('show');$('vName').focus()};
 $('vSave').onclick=()=>{
   const name=$('vName').value.trim(),id=$('vId').value.trim();
   if(!name||!id)return alert('أدخل اسماً ومعرّف الصوت (ID)');
@@ -550,6 +1247,12 @@ $('vSave').onclick=()=>{
   $('voiceSelect').value=id;
   $('voiceOverlay').classList.remove('show');
 };
+try{
+  const om=localStorage.getItem('ormodel');
+  if(om&&[...$('model').options].some(o=>o.value===om))$('model').value=om;
+}catch(e){}
+loadGoogleState();
+setOrModel();
 
 // ---- unsaved-changes tracking ----
 let dirty=false,currentWorkId=null,currentWorkName='',mergeUrl=null,persistAsked=false,saveBusy=false;
@@ -630,7 +1333,7 @@ async function saveWork(kind){
       id,name,createdAt:prev?prev.createdAt:now,updatedAt:now,
       text:$('text').value,mode:$('mode').value,max:$('max').value,
       mergedName:$('mergeName').value,globalVoice:$('voiceSelect').value,
-      chunks:chunks.map(c=>({text:c.text,voice:c.voice||'',name:c.name||'',ext:c.ext||'mp3',blob:c.blob||null}))
+      chunks:chunks.map(c=>({text:c.text,voice:c.voice||'',name:c.name||'',ext:c.ext||'mp3',blob:c.blob||null,usedAccount:c.usedAccount||'',usedModel:c.usedModel||''}))
     };
     askPersist();
     await dbPut(work);
@@ -645,7 +1348,7 @@ async function restoreWork(id){
   let w;try{w=await dbGet(id)}catch(e){return alert(dbMsg(e))}
   if(!w)return alert('هذا العمل لم يعد موجوداً');
   if(dirty&&!confirm('توجد تغييرات غير محفوظة في مساحة العمل الحالية. الاسترجاع سيستبدلها. متابعة؟'))return;
-  ctls.forEach(c=>c.abort());ctls.clear();stopReq=true;
+  cancelAll(false);
   releaseUrls();
   $('text').value=w.text||'';
   $('mode').value=w.mode||'chars';
@@ -653,7 +1356,8 @@ async function restoreWork(id){
   $('mergeName').value=w.mergedName||'merged';
   if([...$('voiceSelect').options].some(o=>o.value===w.globalVoice))$('voiceSelect').value=w.globalVoice;
   chunks=(w.chunks||[]).map(c=>{
-    const o={text:c.text||'',voice:c.voice||'',name:c.name||'',ext:c.ext||'mp3',blob:c.blob||null};
+    const o={text:c.text||'',voice:c.voice||'',name:c.name||'',ext:c.ext||'mp3',blob:c.blob||null,
+      usedAccount:c.usedAccount||'',usedModel:c.usedModel||''};
     if(o.blob)o.url=URL.createObjectURL(o.blob);
     return o;
   });
@@ -716,7 +1420,7 @@ function syncFileBox(){$('textActions').classList.toggle('show',$('text').value.
 
 $('clearsave').onclick=()=>{
   if(dirty&&!confirm('سيتم مسح كل شيء، بما فيه التغييرات غير المحفوظة. متابعة؟'))return;
-  ctls.forEach(c=>c.abort());ctls.clear();stopReq=true;
+  cancelAll(false);
   releaseUrls();
   $('text').value='';
   $('file').value='';
@@ -760,12 +1464,14 @@ async function handleFile(f){
       if(/\.html?$/i.test(f.name))t=new DOMParser().parseFromString(t,'text/html').body.textContent;
       if(/\.srt$/i.test(f.name))t=t.replace(/^\d+\s*$/gm,'').replace(/\d{2}:\d{2}:\d{2}[,.]\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}[,.]\d{3}/g,'').replace(/\n{2,}/g,'\n').trim();
     }
+    cancelAll(false);
     $('text').value=t;
     $('filename').textContent='✓ تم رفع: '+f.name;
     $('dzTitle').textContent='✓ تم رفع الملف — اضغط للاستبدال';
     setInputTab('paste');
     showStats();markDirty();syncFileBox();
   }catch(err){$('filename').textContent='تعذّرت القراءة';alert(err.message)}
+  finally{$('file').value=''}
 }
 $('file').onchange=e=>handleFile(e.target.files[0]);
 const dz=$('dropzone');
@@ -786,7 +1492,7 @@ async function pasteFromClipboard(btn){
       const clip=await navigator.clipboard.readText();
       if(!clip)return alert('الحافظة فارغة');
       if($('fsEditor').classList.contains('open')){$('fsText').value=clip;syncFsTextChange()}
-      else{$('text').value=clip;showStats();markDirty();syncFileBox()}
+      else{cancelAll(false);$('text').value=clip;showStats();markDirty();syncFileBox()}
       flashCopyIcon(btn);return;
     }
     throw new Error('no-api');
@@ -798,7 +1504,7 @@ async function pasteFromClipboard(btn){
 function updateFsCount(){const v=$('fsText').value;$('fsCount').textContent=`(${fmt(v.length)} حرف · ${fmt(words(v))} كلمة)`}
 function syncFsTextChange(){
   updateFsCount();
-  if($('text').value!==$('fsText').value){$('text').value=$('fsText').value;showStats();markDirty();syncFileBox()}
+  if($('text').value!==$('fsText').value){cancelAll(false);$('text').value=$('fsText').value;showStats();markDirty();syncFileBox()}
 }
 function openFsEditor(){
   $('fsText').value=$('text').value;updateFsCount();
@@ -838,6 +1544,8 @@ function smartSplit(text,m,max){
 }
 $('splitbtn').onclick=()=>{
   const t=$('text').value.trim();if(!t)return alert('لا يوجد نص');
+  if(chunks.some(c=>c.blob)&&!confirm('توجد مقاطع مولّد صوتها. إعادة التقسيم ستحذف الصوت المولّد لها. متابعة؟'))return;
+  cancelAll(false);
   releaseUrls();
   chunks=smartSplit(t,meas[$('mode').value],Math.max(20,+$('max').value||1500)).map((text,i)=>({text,voice:'',name:defName(i)}));
   render();markDirty();$('ctrl').scrollIntoView({behavior:'smooth'});
@@ -868,9 +1576,9 @@ function render(){
       <button class="ghost mini" data-c="${i}" style="display:none">✕ إلغاء</button></span></div>
       <textarea data-t="${i}">${esc(c.text)}</textarea>
       <div class="row" style="margin-top:4px"><span class="lbl" style="margin:0">اسم الملف</span><input class="fname" data-n="${i}" dir="ltr" value="${esc(c.name||defName(i))}" aria-label="اسم ملف المقطع ${i+1}"></div>
-      <div class="tag" id="s${i}"></div><div class="tag" id="m${i}"></div><div id="a${i}"></div>`;
+      <div class="tag" id="s${i}"></div><div class="tag" id="m${i}"></div><div class="tag" id="u${i}"></div><div id="a${i}"></div>`;
     $('chunks').appendChild(d);cs(i);
-    if(c.blob){$('c'+i).classList.add('done');$('m'+i).className='tag ok';$('m'+i).textContent='تم ✓';
+    if(c.blob){$('c'+i).classList.add('done');$('m'+i).className='tag ok';$('m'+i).textContent='تم ✓';renderUsed(i,c);
       $('a'+i).innerHTML=audioHtml(i,c);}
   });
   renderVoiceSelects();
@@ -892,8 +1600,10 @@ function prog(){
 }
 $('chunks').addEventListener('input',e=>{
   if(e.target.dataset.t!==undefined){
-    const i=+e.target.dataset.t,c=chunks[i];c.text=e.target.value;c.blob=null;
+    cancelAll(false);
+    const i=+e.target.dataset.t,c=chunks[i];c.text=e.target.value;c.blob=null;c.usedAccount='';c.usedModel='';
     if(c.url){URL.revokeObjectURL(c.url);c.url=null}
+    const u=$('u'+i);if(u)u.textContent='';
     $('a'+i).innerHTML='';$('c'+i).classList.remove('done','err');$('m'+i).textContent='';cs(i);prog();markDirty();
   }
 });
@@ -913,6 +1623,7 @@ $('chunks').addEventListener('click',e=>{
 
 // ---- generation ----
 function errMsg(status,body){
+  body=String(body||'');
   const who={kie:'kie.ai',google:'Google AI Studio'}[P()]||'OpenRouter';
   if(status===401||(P()==='google'&&(status===403||/API key/i.test(body||''))))return `مفتاح ${who} غير صالح أو غير مسموح. تحقّق منه من زر 🔑`;
   if(P()==='google'&&status===429)return 'تجاوزت حصة Google (المجانية محدودة بالدقيقة/اليوم). '+(body||'').slice(0,160);
@@ -927,11 +1638,19 @@ async function orBlob(c,ctl){
   const model=$('model').value.trim();
   const geminiTts=/gemini/i.test(model)&&/tts/i.test(model);
   const body={model,input:c.text,response_format:geminiTts?'pcm':'mp3'};
-  const v=(c.voice||(geminiTts?$('orGvoice').value:$('voiceSelect').value)).trim();
-  if(geminiTts){ // Gemini voices are names like Kore
-    if(googleVoiceNames().includes(v))body.voice=v;
-  }else if(v)body.voice=v;
-  const r=await fetch('https://openrouter.ai/api/v1/audio/speech',{method:'POST',signal:ctl.signal,headers:{Authorization:'Bearer '+curKey(),'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const manual=geminiTts?$('orGvoiceManual').value.trim():'';
+  if(geminiTts){
+    // Per-box choice wins, then the manual name, then the global picker.
+    // Never send a Fish voice id to a Gemini TTS model (or vice versa).
+    if(c.voice&&googleVoiceNames().includes(c.voice))body.voice=c.voice;
+    else if(manual)body.voice=manual;
+    else{const g=$('orGvoice').value;body.voice=googleVoiceNames().includes(g)?g:'Kore'}
+  }else{
+    const boxVoice=String(c.voice||'').trim(),globalV=String($('voiceSelect').value||'').trim();
+    if(boxVoice&&voices.some(v=>v.id===boxVoice))body.voice=boxVoice;
+    else if(globalV&&voices.some(v=>v.id===globalV))body.voice=globalV;
+  }
+  const r=await fetchT('https://openrouter.ai/api/v1/audio/speech',{method:'POST',signal:ctl.signal,headers:{Authorization:'Bearer '+curKey(),'Content-Type':'application/json'},body:JSON.stringify(body)},GOOGLE_TIMEOUT);
   if(!r.ok)throw {status:r.status,body:await r.text()};
   if(geminiTts){ // raw PCM (16-bit, usually 24kHz mono) -> wrap into a WAV file
     const bytes=new Uint8Array(await r.arrayBuffer());
@@ -956,28 +1675,42 @@ async function kieBlob(c,ctl,m){
       temperature:Math.min(2,Math.max(0,+$('ktemp').value||1))
     }
   };
-  const r=await fetch('https://api.kie.ai/api/v1/jobs/createTask',{method:'POST',signal:ctl.signal,headers:H,body:JSON.stringify(body)});
+  const r=await fetchT('https://api.kie.ai/api/v1/jobs/createTask',{method:'POST',signal:ctl.signal,headers:H,body:JSON.stringify(body)},KIE_CREATE_TIMEOUT);
   const j=await r.json().catch(()=>({}));
-  if(!r.ok||j.code!==200)throw {status:j.code||r.status,body:j.msg||''};
+  if(!r.ok||Number(j.code)!==200){
+    if(Number(j.code)===429||r.status===429)throw {code:'KIE_429',status:429,body:j.msg||'تجاوز حد Kie'};
+    throw {status:j.code||r.status,body:j.msg||''};
+  }
   const id=j.data&&j.data.taskId;if(!id)throw {status:0,body:'لم يُرجع kie معرّف مهمة'};
-  for(let n=0;n<POLL_MAX;n++){
-    m.textContent=`جارٍ التوليد في kie... (${n+1})`;
-    await sleep(POLL_MS);
-    if(ctl.signal.aborted)throw {name:'AbortError'};
-    const q=await fetch('https://api.kie.ai/api/v1/jobs/recordInfo?taskId='+encodeURIComponent(id),{signal:ctl.signal,headers:{Authorization:H.Authorization}});
+  for(let n=0;n<KIE_POLL_MAX;n++){
+    if(m)m.textContent=`جارٍ التوليد في kie... (${n+1})`;
+    await sleepAbort(KIE_POLL_MS+Math.round((Math.random()*2-1)*KIE_POLL_JITTER),ctl);
+    if(ctl.signal.aborted)throw abortError();
+    const q=await fetchT('https://api.kie.ai/api/v1/jobs/recordInfo?taskId='+encodeURIComponent(id),{signal:ctl.signal,headers:{Authorization:H.Authorization}},KIE_POLL_TIMEOUT);
     const qj=await q.json().catch(()=>({}));
-    if(!q.ok||qj.code!==200)throw {status:qj.code||q.status,body:qj.msg||''};
+    if(!q.ok||Number(qj.code)!==200){
+      if(Number(qj.code)===429||q.status===429)throw {code:'KIE_429',status:429,body:qj.msg||'تجاوز حد Kie'};
+      throw {status:qj.code||q.status,body:qj.msg||''};
+    }
     const d=qj.data||{};
     if(d.state==='fail')throw {status:0,body:(d.failMsg||'فشلت المهمة')+(d.failCode?` [${d.failCode}]`:'')};
     if(d.state==='success'){
       let url='';
-      try{const rj=JSON.parse(d.resultJson||'{}');url=(rj.resultUrls&&rj.resultUrls[0])||rj.url||rj.audio_url||''}catch(e){}
+      try{
+        const rj=typeof d.resultJson==='string'?JSON.parse(d.resultJson||'{}'):(d.resultJson||{});
+        url=(rj.resultUrls&&rj.resultUrls[0])||rj.url||rj.audio_url||'';
+      }catch(e){}
       if(!url)throw {status:0,body:'نجحت المهمة لكن لا يوجد رابط صوت: '+(d.resultJson||'')};
-      const mx=url.split('?')[0].match(/\.(mp3|wav|ogg|m4a|aac|flac)$/i);c.ext=mx?mx[1].toLowerCase():'mp3';
-      m.textContent='جارٍ تنزيل الصوت...';
-      let ar;try{ar=await fetch(url,{signal:ctl.signal})}catch(e){if(e.name==='AbortError')throw e;throw {status:0,body:'تعذّر تنزيل الصوت (قد يمنعه المتصفح). الرابط: '+url}}
+      const mx=url.split('?')[0].match(/\.(mp3|wav|ogg|m4a|aac|flac)$/i);
+      const extFromUrl=mx?mx[1].toLowerCase():'';
+      if(m)m.textContent='جارٍ تنزيل الصوت...';
+      let ar;try{ar=await fetchT(url,{signal:ctl.signal},KIE_DOWNLOAD_TIMEOUT)}catch(e){if(e&&e.name==='AbortError')throw e;throw {status:0,body:'تعذّر تنزيل الصوت (قد يمنعه المتصفح). الرابط: '+url}}
       if(!ar.ok)throw {status:ar.status,body:'تعذّر تنزيل الصوت: '+url};
-      return ar.blob();
+      const b=await ar.blob();
+      let sniffed='';
+      try{sniffed=sniffAudioExt(new Uint8Array(await b.slice(0,16).arrayBuffer()))}catch(e){}
+      c.ext=sniffed||extFromUrl||'mp3';
+      return b;
     }
   }
   throw {status:0,body:'انتهت مهلة الانتظار (المهمة '+id+' لم تكتمل)'};
@@ -986,28 +1719,61 @@ async function kieBlob(c,ctl,m){
 // Google AI Studio (Gemini API, Interactions endpoint): returns WAV Blob
 // one request per box, no automatic retries — if Google returns an error it is shown as-is
 function b64ToBytes(b64){const bin=atob(b64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u}
-async function googleBlob(c,ctl){
+function googleQuotaKind(text){
+  const s=String(text||'');
+  if(/PerDay|per[\s_-]*day|daily/i.test(s))return 'day';
+  if(/PerMinute|per[\s_-]*minute|per[\s_-]*min/i.test(s))return 'minute';
+  return '';
+}
+async function googleBlob(c,ctl,slot){
   const text={type:'text',text:c.text},style=$('gstyle').value.trim();
   if(style)text.annotations=[{type:'speech_metadata',style}];
   const body={
-    model:$('gmodel').value,
+    model:slot.model,
     input:[{type:'user_input',content:[text]}],
     response_format:{type:'audio'},
-    generation_config:{speech_config:[{voice:$('gvoice').value.trim()||'Kore'}]}
+    generation_config:{speech_config:[{voice:getGoogleVoice()}]}
   };
-  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/interactions',{method:'POST',signal:ctl.signal,headers:{'x-goog-api-key':curKey(),'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const r=await fetchT('https://generativelanguage.googleapis.com/v1beta/interactions',{method:'POST',signal:ctl.signal,headers:{'x-goog-api-key':slot.account.key,'Content-Type':'application/json'},body:JSON.stringify(body)},GOOGLE_TIMEOUT);
   const raw=await r.text();let j={};try{j=JSON.parse(raw)}catch(e){}
-  if(!r.ok)throw {status:r.status,body:(j.error&&j.error.message)||raw};
-  const auds=((j.steps||[]).flatMap(s=>s.content||[])).filter(x=>x&&x.type==='audio'&&x.data);
+  if(!r.ok){
+    const detail=raw+' '+(j.error?JSON.stringify(j.error.details||''):'')+' '+(j.error&&j.error.message?j.error.message:'');
+    const retryAfter=Math.max(0,Number(r.headers&&r.headers.get&&r.headers.get('retry-after'))||0)*1000;
+    if(r.status===429){
+      const kind=googleQuotaKind(detail);
+      throw {status:429,body:(j.error&&j.error.message)||raw,googleQuota:kind||'unknown',retryAfter,accountId:slot.account.id,model:slot.model};
+    }
+    if((r.status===400||r.status===403)&&/API key|API_KEY|UNAUTHENTICATED|PERMISSION_DENIED|permission|denied|forbidden|unauthorized|not authorized|invalid.{0,20}key|not valid.{0,20}key/i.test(detail)){
+      throw {status:r.status,body:(j.error&&j.error.message)||raw,invalidKey:true,accountId:slot.account.id};
+    }
+    throw {status:r.status,body:(j.error&&j.error.message)||raw};
+  }
+  const steps=Array.isArray(j.steps)?j.steps:[];
+  const auds=steps.flatMap(s=>Array.isArray(s&&s.content)?s.content:[]).filter(x=>x&&x.type==='audio'&&x.data);
   if(!auds.length)throw {status:0,body:'لم يرجع Google أي صوت: '+raw.slice(0,200)};
-  const a=auds[auds.length-1],mt=a.mime_type||'audio/wav';
+  const a=auds[auds.length-1],mt=a.mime_type||a.mimeType||'audio/wav';
   c.ext=/l16|pcm/i.test(mt)?'pcm':'wav';
   let bytes=b64ToBytes(a.data);
-  if(c.ext==='pcm'){bytes=wavFromPcm(bytes);c.ext='wav'}
+  if(c.ext==='pcm'){
+    const m=String(mt).match(/rate=(\d+)/);
+    bytes=wavFromPcm(bytes,m?+m[1]:24000);
+    c.ext='wav';
+  }
+  c.usedAccount=slot.account.name;
+  c.usedModel=gLabel(slot.model);
   return new Blob([bytes],{type:'audio/wav'});
 }
 
 // ---- WAV helpers (merge WAVs properly: strip headers, join PCM, write one header) ----
+function sniffAudioExt(u){
+  if(!u||u.length<4)return '';
+  if(u[0]===0x52&&u[1]===0x49&&u[2]===0x46&&u[3]===0x46)return 'wav';
+  if(u[0]===0x49&&u[1]===0x44&&u[2]===0x33)return 'mp3';
+  if(u[0]===0xFF&&(u[1]&0xE0)===0xE0)return 'mp3';
+  if(u[0]===0x4F&&u[1]===0x67&&u[2]===0x67&&u[3]===0x53)return 'ogg';
+  if(u[0]===0x66&&u[1]===0x4C&&u[2]===0x61&&u[3]===0x43)return 'flac';
+  return '';
+}
 function wavHeader(dataLen,rate,ch,bits){
   const b=new DataView(new ArrayBuffer(44)),w=(o,s)=>[...s].forEach((x,i)=>b.setUint8(o+i,x.charCodeAt(0)));
   w(0,'RIFF');b.setUint32(4,36+dataLen,true);w(8,'WAVEfmt ');b.setUint32(16,16,true);b.setUint16(20,1,true);b.setUint16(22,ch,true);
@@ -1026,100 +1792,296 @@ function parseWav(u){
   return {rate,ch,bits,pcm:u.subarray(44)};
 }
 async function mergeWavs(blobs){
+  if(!blobs.length)throw new Error('لا توجد ملفات للدمج');
   const parts=[];for(const b of blobs)parts.push(parseWav(new Uint8Array(await b.arrayBuffer())));
-  const len=parts.reduce((a,p)=>a+p.pcm.length,0),f=parts[0],out=new Uint8Array(44+len);
+  const f=parts[0];
+  const bad=parts.find(p=>p.rate!==f.rate||p.ch!==f.ch||p.bits!==f.bits);
+  if(bad){
+    throw new Error(`لا يمكن دمج ملفات WAV بإعدادات مختلفة: الأول ${f.rate}Hz/${f.ch}ch/${f.bits}bit، وملف آخر ${bad.rate}Hz/${bad.ch}ch/${bad.bits}bit. وحّد الإعدادات أولاً.`);
+  }
+  const len=parts.reduce((a,p)=>a+p.pcm.length,0),out=new Uint8Array(44+len);
   out.set(wavHeader(len,f.rate,f.ch,f.bits));let o=44;for(const p of parts){out.set(p.pcm,o);o+=p.pcm.length}
   return new Blob([out],{type:'audio/wav'});
 }
 
-async function gen(i,tries=0){
-  const k=curKey();
-  if(!k){$('keybox').style.display='block';alert('أدخل مفتاح '+({kie:'kie.ai',google:'Google AI Studio'}[P()]||'OpenRouter')+' أولاً');return false}
-  const c=chunks[i],m=$('m'+i),btn=document.querySelector(`[data-g="${i}"]`),cancel=document.querySelector(`[data-c="${i}"]`);
-  btn.disabled=true;cancel.style.display='';m.className='tag';m.textContent='جارٍ التوليد...';
-  const ctl=new AbortController();ctls.set(i,ctl);
-  try{
-    const blob=await (P()==='kie'?kieBlob(c,ctl,m):P()==='google'?googleBlob(c,ctl,m):orBlob(c,ctl));
-    c.blob=blob;if(c.url)URL.revokeObjectURL(c.url);c.url=URL.createObjectURL(c.blob);
-    $('a'+i).innerHTML=audioHtml(i,c);
-    m.className='tag ok';m.textContent='تم ✓';$('c'+i).classList.add('done');$('c'+i).classList.remove('err');
-    btn.disabled=false;cancel.style.display='none';ctls.delete(i);prog();markDirty();return true;
-  }catch(err){
-    if(err&&err.status===429&&tries<3&&!stopReq&&P()!=='google'){
-      m.textContent='حد الطلبات... إعادة المحاولة خلال 20 ثانية';
-      await sleep(RETRY_DELAY);
-      if(!stopReq)return gen(i,tries+1);
-      m.className='tag bad';m.textContent='أُوقف';btn.disabled=false;cancel.style.display='none';ctls.delete(i);return false;
+function renderUsed(i,c){
+  const u=$('u'+i);
+  if(u)u.textContent=c.usedAccount?(c.usedAccount+(c.usedModel?' · '+c.usedModel:'')):'';
+}
+async function googleBlobWithSlots(c,ctl,m){
+  const ambiguous=new Set();
+  let retrySlot=null;
+  for(let guard=0;guard<100;guard++){
+    if(stopReq||ctl.signal.aborted){
+      if(retrySlot)releaseSlot(retrySlot);
+      throw abortError();
     }
-    m.className='tag bad';
-    m.textContent=(err&&err.name==='AbortError')?'أُلغي':'خطأ: '+errMsg(err&&err.status,(err&&(err.body||err.message))||'');
-    $('c'+i).classList.add('err');
-    btn.disabled=false;cancel.style.display='none';ctls.delete(i);return false;
+    const slot=retrySlot||acquireGoogleSlot();
+    retrySlot=null;
+    if(!slot){const e=new Error('no slot');e.noSlot=true;throw e}
+    try{
+      const b=await googleBlob(c,ctl,slot);
+      updateGoogleQuotaUI();
+      return b;
+    }catch(err){
+      if(err&&(err.name==='AbortError'||err.timeout)){releaseSlot(slot);throw err}
+      if(err&&err.googleQuota==='day'){
+        releaseSlot(slot);
+        markGoogleExhausted(slot);
+        continue;
+      }
+      if(err&&err.googleQuota==='minute'){
+        const delay=Math.min(90000,Math.max(15000,err.retryAfter||60000));
+        if(m){m.className='tag';m.textContent=`حد Google بالدقيقة… إعادة خلال ${Math.ceil(delay/1000)} ث`}
+        try{await sleepAbort(delay,ctl)}catch(e){releaseSlot(slot);throw e}
+        retrySlot=slot;
+        continue;
+      }
+      if(err&&err.googleQuota==='unknown'){
+        const key=slot.account.id+'|'+slot.model;
+        if(ambiguous.has(key)){
+          releaseSlot(slot);
+          markGoogleExhausted(slot);
+          continue;
+        }
+        ambiguous.add(key);
+        const delay=Math.min(60000,Math.max(5000,err.retryAfter||15000));
+        if(m){m.className='tag';m.textContent='حد Google غير واضح… محاولة واحدة أخرى'}
+        try{await sleepAbort(delay,ctl)}catch(e){releaseSlot(slot);throw e}
+        retrySlot=slot;
+        continue;
+      }
+      if(err&&err.invalidKey){
+        releaseSlot(slot);
+        slot.account.enabled=false;
+        saveGoogleAccounts();renderGoogleAccounts();
+        toast(`تم تعطيل ${slot.account.name}: مفتاح غير صالح`);
+        continue;
+      }
+      releaseSlot(slot);
+      throw err;
+    }
+  }
+  if(retrySlot)releaseSlot(retrySlot);
+  const e=new Error('no slot');e.noSlot=true;throw e;
+}
+async function gen(i,opts){
+  opts=opts||{};
+  const myEpoch=epoch,c=chunks[i];
+  if(!c)return false;
+  if(P()==='google'){
+    if(!googleAnyKey()){$('keybox').style.display='block';alert('أضف مفتاح حساب Google أو فعّل حساباً أولاً');return false}
+  }else if(!curKey()){
+    $('keybox').style.display='block';
+    alert('أدخل مفتاح '+({kie:'kie.ai',google:'Google AI Studio'}[P()]||'OpenRouter')+' أولاً');
+    return false;
+  }
+  const m=$('m'+i),btn=document.querySelector(`[data-g="${i}"]`),cancel=document.querySelector(`[data-c="${i}"]`),card=$('c'+i);
+  if(btn)btn.disabled=true;
+  if(cancel)cancel.style.display='';
+  if(m){m.className='tag';m.textContent='جارٍ التوليد...'}
+  if(card){card.classList.add('work');card.classList.remove('err')}
+  const ctl=new AbortController();ctls.set(i,ctl);
+  let tries=0,kieAttempt=opts.kieAttempt||0;
+  try{
+    while(true){
+      if(!isAlive(i,c,myEpoch)||stopReq||ctl.signal.aborted)return false;
+      try{
+        const blob=P()==='kie'?await kieBlob(c,ctl,m):P()==='google'?await googleBlobWithSlots(c,ctl,m):await orBlob(c,ctl);
+        if(!isAlive(i,c,myEpoch)||stopReq||ctl.signal.aborted)return false;
+        c.blob=blob;
+        if(c.url)URL.revokeObjectURL(c.url);
+        c.url=URL.createObjectURL(c.blob);
+        if(P()!=='google'){c.usedAccount='';c.usedModel=''}
+        const a=$('a'+i);if(a)a.innerHTML=audioHtml(i,c);
+        renderUsed(i,c);
+        if(m){m.className='tag ok';m.textContent='تم ✓'}
+        if(card){card.classList.add('done');card.classList.remove('err','work')}
+        prog();markDirty();return true;
+      }catch(err){
+        if(!isAlive(i,c,myEpoch))return false;
+        if(err&&err.code==='KIE_429'){
+          if(opts.kieQueue){if(m){m.className='tag';m.textContent='حد Kie: بانتظار الإعادة…'}return {retry:true,attempt:kieAttempt}}
+          if(kieAttempt<KIE_MAX_ATTEMPTS-1){
+            const delay=KIE_RETRY_DELAYS[Math.min(kieAttempt,KIE_RETRY_DELAYS.length-1)];
+            if(m){m.className='tag';m.textContent=`حد Kie… إعادة خلال ${Math.ceil(delay/1000)} ث`}
+            await sleepAbort(delay,ctl);kieAttempt++;continue;
+          }
+        }
+        if(err&&err.status===429&&P()!=='google'&&!opts.kieQueue&&tries<3&&!stopReq){
+          tries++;
+          if(m){m.className='tag';m.textContent='حد الطلبات… إعادة المحاولة خلال 20 ثانية'}
+          await sleepAbort(RETRY_DELAY,ctl);continue;
+        }
+        throw err;
+      }
+    }
+  }catch(err){
+    if(!isAlive(i,c,myEpoch))return false;
+    if(err&&err.noSlot){
+      if(m){m.className='tag';m.textContent='بانتظار توفر الحصة…'}
+      if(card)card.classList.remove('work','err');
+      showNoSlots();stopReq=true;return false;
+    }
+    if(stopReq&&!ctl.signal.aborted)return false;
+    if(err&&err.name==='AbortError'){
+      if(m){m.className='tag';m.textContent='أُلغي'}
+      if(card)card.classList.remove('err','work');
+      return false;
+    }
+    if(err&&err.timeout){
+      if(m){m.className='tag bad';m.textContent='انتهت المهلة. اضغط توليد لإعادة المحاولة.'}
+      if(card){card.classList.add('err');card.classList.remove('work')}
+      return false;
+    }
+    if(m){
+      m.className='tag bad';
+      m.textContent=err&&err.code==='KIE_429'
+        ?'خطأ: تجاوز حد Kie بعد 4 محاولات'
+        :'خطأ: '+errMsg(err&&err.status,(err&&(err.body||err.message))||'');
+    }
+    if(card){card.classList.add('err');card.classList.remove('work')}
+    return false;
+  }finally{
+    const owns=ctls.get(i)===ctl;
+    if(owns)ctls.delete(i);
+    if(epoch===myEpoch&&chunks[i]===c&&(owns||!ctls.has(i))){
+      if(btn)btn.disabled=false;
+      if(cancel)cancel.style.display='none';
+    }
   }
 }
 // countdown shown inside a box before its request is sent (Google "generate all")
-function delayBefore(i,sec){
+function delayBefore(i,sec,myEpoch){
   return new Promise(res=>{
-    if(stopReq)return res();
+    if(stopReq||epoch!==myEpoch)return res();
     const m=$('m'+i),f2=n=>String(n).padStart(2,'0');
     let s=sec;
     const show=()=>{if(m)m.textContent=`بانتظار ${f2(Math.floor(s/60))}:${f2(s%60)} ثم الإرسال...`};
     show();
     const t=setInterval(()=>{
-      if(stopReq){clearInterval(t);return res()}
+      if(stopReq||epoch!==myEpoch){clearInterval(t);return res()}
       s--;show();
       if(s<=0){clearInterval(t);res()}
     },1000);
   });
 }
-// countdown between kie batches (shown under the progress bar)
-function batchCountdown(sec){
-  return new Promise(res=>{
-    const el=$('batchCount');let s=sec;
-    const show=()=>{if(el)el.textContent=`⏳ الدفعة التالية خلال ${s} ثانية`};
-    show();
-    const t=setInterval(()=>{
-      s--;
-      if(stopReq||s<=0){clearInterval(t);if(el)el.textContent='';return res()}
-      show();
-    },1000);
+function showKieRetryCountdown(i,readyAt,myEpoch){
+  const m=$('m'+i);if(!m)return;
+  const tick=()=>{
+    if(stopReq||epoch!==myEpoch||!document.body.contains(m))return;
+    const left=readyAt-Date.now();
+    if(left<=0){m.className='tag';m.textContent='بانتظار إعادة المحاولة…';return}
+    m.className='tag';m.textContent=`حد Kie: إعادة خلال ${Math.ceil(left/1000)} ث`;
+    setTimeout(tick,1000);
+  };
+  tick();
+}
+function runKieQueue(pending,myEpoch){
+  return new Promise(resolve=>{
+    const queue=pending.slice(),retries=[],launchTimes=[],attempts=new Map();
+    let active=0,finished=false,timer=null;
+    function finish(){
+      if(finished)return;
+      finished=true;
+      if(timer){clearTimeout(timer);timer=null}
+      resolve();
+    }
+    function schedule(){
+      if(finished)return;
+      if(timer){clearTimeout(timer);timer=null}
+      if(stopReq||epoch!==myEpoch){finish();return}
+      const now=Date.now();
+      while(launchTimes.length&&now-launchTimes[0]>=KIE_WINDOW_MS)launchTimes.shift();
+      for(let k=retries.length-1;k>=0;k--){
+        if(retries[k].readyAt<=now){queue.push(retries[k].i);retries.splice(k,1)}
+      }
+      while(!stopReq&&epoch===myEpoch&&active<KIE_MAX_CONCURRENT&&queue.length&&launchTimes.length<KIE_LAUNCH_PER_WINDOW){
+        const i=queue.shift();
+        launchTimes.push(Date.now());
+        active++;
+        const attempt=attempts.get(i)||0;
+        gen(i,{kieQueue:true,kieAttempt:attempt}).then(res=>{
+          active--;
+          if(epoch!==myEpoch){finish();return}
+          if(res&&res.retry){
+            const next=attempt+1;
+            if(next>=KIE_MAX_ATTEMPTS){
+              const m=$('m'+i),card=$('c'+i);
+              if(m){m.className='tag bad';m.textContent='خطأ: تجاوز حد Kie بعد 4 محاولات'}
+              if(card){card.classList.add('err');card.classList.remove('work')}
+            }else{
+              attempts.set(i,next);
+              const delay=KIE_RETRY_DELAYS[Math.min(attempt,KIE_RETRY_DELAYS.length-1)];
+              const readyAt=Date.now()+delay;
+              retries.push({i,readyAt});
+              showKieRetryCountdown(i,readyAt,myEpoch);
+            }
+          }
+          schedule();
+        }).catch(err=>{
+          active--;
+          if(epoch!==myEpoch){finish();return}
+          const m=$('m'+i),card=$('c'+i);
+          if(m){m.className='tag bad';m.textContent='خطأ: '+((err&&err.message)||'غير معروف')}
+          if(card){card.classList.add('err');card.classList.remove('work')}
+          schedule();
+        });
+      }
+      if(!stopReq&&epoch===myEpoch&&active===0&&queue.length===0&&retries.length===0){finish();return}
+      let wait=250;
+      if(!queue.length&&retries.length){
+        const next=Math.min(...retries.map(r=>r.readyAt))-Date.now();
+        wait=Math.max(50,Math.min(1000,next));
+      }
+      timer=setTimeout(schedule,wait);
+    }
+    schedule();
   });
 }
 $('allbtn').onclick=async()=>{
-  stopReq=false;$('allbtn').style.display='none';$('stopbtn').style.display='';
+  cancelAll(false);
+  stopReq=false;
+  const myRun=++runSeq,myEpoch=epoch;
+  const key=curKey();
+  if(!key){
+    $('keybox').style.display='block';
+    alert(P()==='google'?'أضف مفتاح حساب Google أو فعّل حساباً أولاً':'أدخل مفتاح '+({kie:'kie.ai',google:'Google AI Studio'}[P()]||'OpenRouter')+' أولاً');
+    return;
+  }
+  $('allbtn').style.display='none';$('stopbtn').style.display='';
   const pending=chunks.map((c,i)=>i).filter(i=>!chunks[i].blob);
   const gsec=P()==='google'?(Math.max(1,parseInt($('gdelay').value)||1))*60:0;
-  if(P()==='kie'){
-    // 15 requests at once, then a 10-second gap before the next 15, until done
-    const BATCH=15,GAP=10,procs=[];
-    for(let s=0;s<pending.length&&!stopReq;s+=BATCH){
-      const batch=pending.slice(s,s+BATCH);
-      batch.forEach(i=>procs.push(gen(i)));
-      if(s+BATCH<pending.length&&!stopReq)await batchCountdown(GAP);
-    }
-    await Promise.all(procs);
-  }else if(gsec){
-    for(const i of pending){
-      if(stopReq)break;
-      await delayBefore(i,gsec);
-      if(stopReq)break;
-      await gen(i);
-    }
-  }else{
-    let idx=0;
-    async function worker(){
-      while(idx<pending.length&&!stopReq){
-        const i=pending[idx++];
+  try{
+    if(P()==='kie'){
+      await runKieQueue(pending,myEpoch);
+    }else if(gsec){
+      for(const i of pending){
+        if(stopReq||epoch!==myEpoch)break;
+        await delayBefore(i,gsec,myEpoch);
+        if(stopReq||epoch!==myEpoch)break;
         await gen(i);
-        if(!stopReq)await sleep(STAGGER);
       }
+    }else{
+      let idx=0;
+      async function worker(){
+        while(idx<pending.length&&!stopReq&&epoch===myEpoch){
+          const i=pending[idx++];
+          await gen(i);
+          if(!stopReq&&epoch===myEpoch)await sleep(STAGGER);
+        }
+      }
+      await Promise.all(Array.from({length:Math.min(CONCURRENCY,pending.length)||1},worker));
     }
-    await Promise.all(Array.from({length:Math.min(CONCURRENCY,pending.length)||1},worker));
+  }finally{
+    if(myRun===runSeq){
+      $('stopbtn').style.display='none';$('allbtn').style.display='';
+      $('allbtn').textContent=chunks.some(c=>!c.blob)?'▶ استئناف':'▶ توليد الكل';
+      const bc=$('batchCount');if(bc)bc.textContent='';
+    }
   }
-  $('stopbtn').style.display='none';$('allbtn').style.display='';
-  $('allbtn').textContent=chunks.some(c=>!c.blob)?'▶ استئناف':'▶ توليد الكل';
 };
-$('stopbtn').onclick=()=>{stopReq=true;ctls.forEach(c=>c.abort())};
+$('stopbtn').onclick=()=>{cancelAll(true)};
 
 // ---- merge preview (reorder / add / delete, then merge in order) ----
 let mergeItems=[],mergeDrag=null;
@@ -1145,6 +2107,7 @@ function openMerge(){
   renderMergeList();
   $('mergeResult').innerHTML='';
   $('mergeOverlay').classList.add('show');
+  setTimeout(()=>$('mergeDoBtn').focus(),60);
 }
 function closeMerge(){
   mergeItems.forEach(it=>URL.revokeObjectURL(it.url));
@@ -1172,25 +2135,36 @@ $('mergeList').addEventListener('drop',e=>{
   mergeDrag=null;renderMergeList();
 });
 $('mergeAddFile').onchange=e=>{
+  const allowed=['mp3','wav','ogg','m4a','aac','flac'];
+  const maxBytes=100*1024*1024;
+  const bad=[];
   for(const f of e.target.files){
+    const ex=((f.name.match(/\.([a-z0-9]+)$/i)||[])[1]||'').toLowerCase();
+    const okType=f.type?f.type.startsWith('audio/'):true;
+    if(!allowed.includes(ex)||!okType||f.size>maxBytes){
+      bad.push(f.name+(f.size>maxBytes?' (أكبر من 100MB)':''));
+      continue;
+    }
     const nm=cleanName(f.name.replace(/\.[^.]+$/,''))||f.name;
-    const ex=((f.name.match(/\.([a-z0-9]+)$/i)||[])[1]||'mp3').toLowerCase();
     mergeItems.push({name:nm,ext:ex,blob:f,url:URL.createObjectURL(f)});
   }
   e.target.value='';renderMergeList();
+  if(bad.length)alert('تم تجاهل ملفات غير مدعومة أو كبيرة جداً:\n'+bad.join('\n'));
 };
 $('mergeDoBtn').onclick=async()=>{
   if(!mergeItems.length)return alert('لا توجد أصوات للدمج');
   const exts=[...new Set(mergeItems.map(it=>it.ext))];
   if(exts.length>1)return alert('الملفات بصيغ مختلطة ('+exts.join(', ')+'). استخدم ملفات من نفس الصيغة.');
   const e=exts[0];
+  if(e!=='wav'&&e!=='mp3')return alert('الدمج مدعوم فقط لملفات WAV وMP3.');
   let blob;
   try{blob=e==='wav'?await mergeWavs(mergeItems.map(it=>it.blob)):new Blob(mergeItems.map(it=>it.blob),{type:mergeItems[0].blob.type||'audio/mpeg'})}
   catch(err){return alert('تعذّر الدمج: '+err.message)}
   const url=URL.createObjectURL(blob);
   if(mergeUrl)URL.revokeObjectURL(mergeUrl);mergeUrl=url;
-  const base=cleanName($('mergeName').value)||'merged';
-  const html=`<p class="tag">دُمج ${mergeItems.length} صوتاً بالترتيب</p><audio controls src="${url}"></audio><a href="${url}" data-ext="${e}" download="${esc(base)}.${e}">تحميل الملف المدمج</a>`;
+  const base=cleanName($('mergeName').value)||cleanName(currentWorkName)||'merged';
+  const note=e==='mp3'?'<p class="tag warn">دمج MP3 خام: قد تظهر مدة الملف غير دقيقة في بعض المشغّلات.</p>':'';
+  const html=`<p class="tag">دُمج ${mergeItems.length} صوتاً بالترتيب</p>${note}<audio controls src="${url}"></audio><a href="${url}" data-ext="${e}" download="${esc(base)}.${e}">تحميل الملف المدمج</a>`;
   $('mergeResult').innerHTML=html;
   $('mergeout').innerHTML=html;
 };
@@ -1216,7 +2190,10 @@ $('zipbtn').onclick=async()=>{
   for(let i=0;i<chunks.length;i++)if(chunks[i].blob)files.push({name:uniqueName(fname(i,chunks[i]),used),data:new Uint8Array(await chunks[i].blob.arrayBuffer())});
   if(!files.length)return alert('لا توجد أصوات مولّدة للتصدير');
   const u=URL.createObjectURL(zip(files));
-  const a=document.createElement('a');a.href=u;a.download='audio-parts.zip';a.click();
+  const merged=cleanName($('mergeName').value);
+  const base=((merged&&merged!=='merged')?merged:(cleanName(currentWorkName)||merged||'audio-parts')).replace(/\.zip$/i,'');
+  const zipName=(base||'audio-parts')+'.zip';
+  const a=document.createElement('a');a.href=u;a.download=zipName;a.click();
   setTimeout(()=>URL.revokeObjectURL(u),60000);
 };
 
