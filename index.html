@@ -146,7 +146,7 @@ body:not([data-p=or]) select[data-v]{display:none}
 /* voice select row */
 .vrow{display:flex;gap:6px;align-items:center;flex:1;min-width:180px}
 .vrow select{flex:1;min-width:0}
-.vrow input{flex:0 0 130px;min-width:100px}
+
 
 /* modal */
 .overlay{position:fixed;inset:0;background:rgba(20,20,10,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
@@ -184,14 +184,52 @@ body:not([data-p=or]) select[data-v]{display:none}
 .g-acc-bad{color:var(--bad);font-weight:700}
 .g-acc-ok{color:var(--ok);font-weight:700}
 .g-quota-summary{font-size:13px;line-height:1.8;background:var(--cream);border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-top:8px}
-.g-model-order{display:flex;flex-direction:column;gap:6px;margin-top:8px}
-.g-model-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;border:1px dashed var(--line);border-radius:9px;padding:6px 8px;font-size:12.5px;background:#fffaf0}
-.g-model-row b{min-width:42px}
-.g-model-row input[type=number]{width:72px;padding:3px 6px;font-size:12px}
-.g-model-row .grow{flex:1;color:var(--mut);min-width:100px}
-.g-model-row .actbtn{padding:1px 7px;font-size:12px;border-radius:7px;min-width:auto}
-.g-search{flex:1;min-width:160px}
 .g-reset{font-size:12px;line-height:1.5}
+/* custom Google voice picker */
+.g-voice-picker{position:relative}
+.g-voice-trigger{width:100%;min-height:40px;background:var(--field);color:var(--ink);border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:8px;box-shadow:none;text-shadow:none;font-weight:700;font-size:13.5px;text-align:right}
+.g-voice-trigger:hover{filter:none;border-color:var(--ol)}
+.g-voice-trigger:active{transform:none}
+.g-voice-trigger span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.g-voice-caret{color:var(--mut);font-size:12px}
+.g-voice-panel{position:absolute;top:calc(100% + 6px);right:0;left:0;z-index:60;background:var(--paper);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.3);padding:8px;display:flex;flex-direction:column;max-height:min(65vh,430px)}
+.g-voice-panel[hidden]{display:none}
+.g-voice-tools{display:flex;gap:6px;align-items:center}
+.g-voice-searchwrap{position:relative;flex:1;min-width:0}
+.g-voice-searchwrap input{width:100%;padding:7px 30px 7px 10px;font-size:13px}
+.g-voice-searchicon{position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:12px;opacity:.7;pointer-events:none}
+.g-voice-filterbtn{flex:0 0 auto;background:var(--cream);color:var(--ink);border:1px solid var(--line);box-shadow:none;text-shadow:none;padding:7px 10px;font-size:12.5px;border-radius:9px;min-height:34px}
+.g-voice-filterbtn:hover{filter:none;border-color:var(--ol)}
+.g-voice-filterbtn.on{border-color:var(--or);color:var(--or)}
+.g-voice-filterpanel{border-top:1px solid var(--line);margin-top:7px;padding-top:7px;display:flex;flex-direction:column;gap:7px}
+.g-voice-filterpanel[hidden]{display:none}
+.g-voice-filter-row{display:flex;align-items:center;gap:8px}
+.g-voice-filter-title{flex:0 0 45px;font-size:11.5px;color:var(--mut);font-weight:700}
+.g-voice-filter-row select{flex:1;min-width:0;padding:5px 8px;font-size:12.5px;border-radius:8px}
+.g-voice-addcustom{align-self:flex-start;background:none;color:var(--link);border:0;box-shadow:none;text-shadow:none;padding:3px 0;font-size:12.5px;font-weight:700;min-height:auto}
+.g-voice-addcustom:hover{filter:none;text-decoration:underline}
+.g-custom-form{display:flex;gap:6px}
+.g-custom-form[hidden]{display:none}
+.g-custom-form input{flex:1;min-width:0;padding:6px 8px;font-size:12.5px}
+.g-custom-form button{flex:0 0 auto;padding:6px 12px;font-size:12.5px;border-radius:8px;min-height:34px}
+.g-voice-list{overflow-y:auto;margin-top:6px;display:flex;flex-direction:column;gap:3px;flex:1 1 auto;min-height:44px}
+.g-voice-row{display:flex;align-items:center;gap:6px;padding:7px 8px;border-radius:9px;border:1px solid transparent;cursor:pointer;background:transparent;outline:none}
+.g-voice-row:hover,.g-voice-row:focus{background:var(--cream)}
+.g-voice-row.sel{border-color:var(--or);background:rgba(219,149,88,.08)}
+.g-voice-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;text-align:right}
+.g-voice-main b{font-size:13px;font-weight:800;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.g-voice-main small{font-size:11.5px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.g-voice-info{flex:0 0 auto;width:28px;height:28px;min-width:28px;padding:0;border-radius:50%;background:var(--cream);color:var(--ink);border:1px solid var(--line);box-shadow:none;text-shadow:none;font-size:13px;font-weight:800}
+.g-voice-info:hover{filter:none;border-color:var(--ol)}
+.g-voice-empty{font-size:12.5px;color:var(--mut);text-align:center;padding:12px}
+.g-voice-empty[hidden]{display:none}
+.g-info-modal{max-width:460px;max-height:86vh;overflow:auto}
+#gInfoOverlay{z-index:75}
+.g-info-grid{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;font-size:13px;line-height:1.6;margin-bottom:10px}
+.g-info-grid b{color:var(--mut);font-weight:700;white-space:nowrap}
+.g-info-grid span{color:var(--ink);word-break:break-word}
+.g-info-desc{background:var(--cream);border:1px solid var(--line);border-radius:9px;padding:8px;font-size:12.5px;line-height:1.6;color:var(--mut);white-space:pre-wrap}
+@media(max-width:520px){.g-voice-panel{position:fixed;left:10px;right:10px;bottom:10px;top:auto;max-height:70vh;z-index:70}}
 /* toast */
 #toast{position:fixed;right:14px;bottom:18px;background:var(--ink);color:#fff;padding:9px 13px;border-radius:10px;font-size:13px;z-index:80;opacity:0;transform:translateY(8px);transition:opacity .2s,transform .2s;pointer-events:none;max-width:min(90vw,360px);line-height:1.5}
 #toast.show{opacity:1;transform:none}
@@ -241,7 +279,6 @@ body:not([data-p=or]) select[data-v]{display:none}
       </div>
       <div class="vrow" id="orVoiceG" style="display:none">
         <select id="orGvoice" dir="ltr" aria-label="صوت جوجل"></select>
-        <input id="orGvoiceManual" placeholder="اسم صوت يدوي" dir="ltr" aria-label="اسم صوت جوجل يدوياً">
       </div>
     </div>
     <small id="orHint">المفتاح يبقى في متصفحك ويُرسل إلى openrouter.ai فقط. الصوت المختار هنا افتراضي لكل الصناديق، ويمكن لكل صندوق اختيار صوت مختلف.</small>
@@ -302,27 +339,64 @@ body:not([data-p=or]) select[data-v]{display:none}
       <div style="flex:1;min-width:160px;align-self:flex-end"><span id="gManualInfo" class="tag"></span></div>
     </div>
 
-    <div id="gModelOrder" class="g-model-order"></div>
-
     <div class="row" style="margin-top:8px">
-      <div style="flex:1;min-width:200px"><span class="lbl">الصوت (voice)</span>
-        <div class="row" style="margin-top:2px">
-          <select id="gvoice" style="flex:1;min-width:150px" aria-label="اختر صوت Google"></select>
-          <input id="gvoiceManual" style="flex:1;min-width:130px" placeholder="أو اسم صوت يدوي" dir="ltr">
+      <div style="flex:1;min-width:220px">
+        <span class="lbl">الصوت (voice)</span>
+        <div class="g-voice-picker" id="gVoicePicker">
+          <button class="g-voice-trigger" id="gVoiceTrigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+            <span id="gVoiceTriggerText">اختر صوتاً</span><span class="g-voice-caret" aria-hidden="true">▾</span>
+          </button>
+          <div class="g-voice-panel" id="gVoicePanel" hidden>
+            <div class="g-voice-tools">
+              <div class="g-voice-searchwrap">
+                <span class="g-voice-searchicon" aria-hidden="true">🔍</span>
+                <input id="gvoiceSearch" placeholder="ابحث بالاسم أو ذكر أو غليظ أو ناعم…" autocomplete="off">
+              </div>
+              <button class="g-voice-filterbtn" id="gVoiceFilterBtn" type="button" aria-expanded="false">تصفية</button>
+            </div>
+            <div class="g-voice-filterpanel" id="gVoiceFilterPanel" hidden>
+              <div class="g-voice-filter-row">
+                <span class="g-voice-filter-title">الجنس</span>
+                <select id="gvoiceGender" aria-label="تصفية الجنس">
+                  <option value="">الكل</option>
+                  <option value="male">ذكر</option>
+                  <option value="female">أنثى</option>
+                  <option value="neutral">محايد</option>
+                </select>
+              </div>
+              <div class="g-voice-filter-row">
+                <span class="g-voice-filter-title">النبرة</span>
+                <select id="gvoiceTone" aria-label="تصفية النبرة">
+                  <option value="">الكل</option>
+                  <option value="soft">ناعم</option>
+                  <option value="rough">خشن/غليظ</option>
+                  <option value="warm">دافئ</option>
+                  <option value="energetic">حيوي</option>
+                  <option value="firm">حازم</option>
+                  <option value="formal">رسمي/معلوماتي</option>
+                  <option value="clear">واضح</option>
+                  <option value="calm">هادئ</option>
+                </select>
+              </div>
+              <button class="g-voice-addcustom" id="gVoiceAddCustom" type="button">＋ إضافة اسم مخصص</button>
+              <div class="g-custom-form" id="gCustomForm" hidden>
+                <input id="gCustomName" placeholder="اسم الصوت الجديد" dir="ltr" autocomplete="off">
+                <button id="gCustomSave" type="button">إضافة</button>
+              </div>
+            </div>
+            <div class="g-voice-list" id="gVoiceList" role="listbox" aria-label="قائمة الأصوات"></div>
+            <div class="g-voice-empty" id="gVoiceEmpty" hidden>لا توجد أصوات مطابقة</div>
+          </div>
+          <select id="gvoice" hidden tabindex="-1"></select>
         </div>
       </div>
       <div style="flex:0 0 auto;align-self:flex-end">
         <button class="ghost mini" id="gRefreshVoices" type="button">تحديث الأصوات من Google</button>
       </div>
     </div>
-    <div class="row" style="margin-top:6px">
-      <input id="gvoiceSearch" class="g-search" placeholder="ابحث باسم الصوت…">
-      <select id="gvoiceLang" aria-label="فلترة حسب اللغة"></select>
-      <select id="gvoiceGender" aria-label="فلترة حسب الجنس"></select>
-    </div>
 
     <div class="row" style="margin-top:8px">
-      <div style="flex:1;min-width:130px"><span class="lbl">التأخير بين الطلبات</span>
+      <div style="flex:1;min-width:130px"><span class="lbl">التأخير بين الطلبات (من لحظة الإرسال)</span>
         <select id="gdelay" style="width:100%" aria-label="التأخير بين الطلبات عند توليد الكل">
           <option value="1" selected>دقيقة واحدة</option>
           <option value="2">دقيقتان</option>
@@ -334,7 +408,7 @@ body:not([data-p=or]) select[data-v]{display:none}
     <div class="row" style="margin-top:8px">
       <div style="flex:1"><span class="lbl">أسلوب الإلقاء (style) — اختياري، مثلاً: هادئ ودافئ</span><input id="gstyle" style="width:100%" placeholder="اتركه فارغاً في الغالب"></div>
     </div>
-    <small>احصل على المفتاح من <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. يبقى في متصفحك ويُرسل إلى generativelanguage.googleapis.com فقط. الحصة المجانية محدودة بعدد الطلبات. يُرسل طلب واحد لكل صندوق ثم انتظار الرد؛ وأثناء «توليد الكل» يُطبَّق فاصل زمني من قائمة «التأخير بين الطلبات» قبل كل طلب. الناتج WAV ويدعم العربية تلقائياً.</small>
+    <small>احصل على المفتاح من <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. يبقى في متصفحك ويُرسل إلى generativelanguage.googleapis.com فقط. الحصة المجانية محدودة بعدد الطلبات. يُرسل طلب واحد لكل صندوق، وأثناء «توليد الكل» يبدأ احتساب الفاصل الزمني من لحظة إرسال الطلب مباشرة ولا ينتظر عودة الرد. الناتج WAV ويدعم العربية تلقائياً.</small>
   </div>
 </div>
 
@@ -346,6 +420,18 @@ body:not([data-p=or]) select[data-v]{display:none}
     <div class="row" style="justify-content:flex-end">
       <button class="ghost" id="vCancel">إلغاء</button>
       <button id="vSave">حفظ الصوت</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="gInfoOverlay" role="dialog" aria-modal="true" aria-labelledby="gInfoTitle">
+  <div class="modal g-info-modal">
+    <h3 id="gInfoTitle">معلومات الصوت</h3>
+    <div id="gInfoBody"></div>
+    <div class="row" style="justify-content:flex-end;flex-wrap:wrap;margin-top:12px">
+      <button class="ghost" id="gInfoClose">إغلاق</button>
+      <button class="ghost" id="gInfoDelete" style="display:none">حذف الاسم المخصص</button>
+      <button id="gInfoUse">استخدام هذا الصوت</button>
     </div>
   </div>
 </div>
@@ -498,7 +584,7 @@ const G_ACCOUNTS_KEY='gaccounts', G_LIMITS_KEY='glimits', G_ORDER_KEY='gmodelord
 const G_MODE_KEY='gmode', G_MANUAL_KEY='gmanual', G_VOICES_KEY='gvoicescache';
 
 let chunks=[],stopReq=false,ctls=new Map();
-let epoch=0, runSeq=0, gQuotaNoticeAt=0;
+let epoch=0, runSeq=0, gQuotaNoticeAt=0, googleSendAt=0;
 let quotaResetCache={at:0,day:''};
 const P=()=>document.body.dataset.p;
 function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
@@ -612,6 +698,8 @@ document.addEventListener('keydown',e=>{
     if($('fsEditor').classList.contains('open')){closeFsEditor();return}
     if($('mergeOverlay').classList.contains('show')){closeMerge();return}
     if($('saveOverlay').classList.contains('show')){closeSaveModal();return}
+    if($('gInfoOverlay').classList.contains('show')){closeVoiceInfo();return}
+    if(!$('gVoicePanel').hidden){closeVoicePanel();return}
     if($('voiceOverlay').classList.contains('show')){
       $('voiceOverlay').classList.remove('show');
       $('addVoiceBtn').focus();
@@ -620,7 +708,8 @@ document.addEventListener('keydown',e=>{
     closeDrawer();return;
   }
   if(e.key==='Tab'){
-    const layer=$('voiceOverlay').classList.contains('show')?$('voiceOverlay')
+    const layer=$('gInfoOverlay').classList.contains('show')?$('gInfoOverlay')
+      :$('voiceOverlay').classList.contains('show')?$('voiceOverlay')
       :$('saveOverlay').classList.contains('show')?$('saveOverlay')
       :$('mergeOverlay').classList.contains('show')?$('mergeOverlay')
       :$('fsEditor').classList.contains('open')?$('fsEditor')
@@ -638,8 +727,8 @@ function keyState(){
     if($('krem').checked)localStorage.setItem('kiekey',$('kkey').value.trim());
     localStorage.setItem('kvoice',$('kvoice').value);localStorage.setItem('kmodel',$('kmodel').value);
     localStorage.setItem('ktemp',$('ktemp').value);localStorage.setItem('kfill',$('kfill').checked?'1':'0');
-    localStorage.setItem('orGvoice',$('orGvoice').value);localStorage.setItem('orgmanual',$('orGvoiceManual').value);
-    localStorage.setItem('gvoice',$('gvoice').value);localStorage.setItem('gmanualvoice',$('gvoiceManual').value);
+    localStorage.setItem('orGvoice',$('orGvoice').value);
+    localStorage.setItem('gvoice',$('gvoice').value);
     localStorage.setItem('gmodel',$('gmodel').value);localStorage.setItem('gstyle',$('gstyle').value);localStorage.setItem('gdelay',$('gdelay').value);
     if(typeof saveGoogleAccounts==='function')saveGoogleAccounts();
   }catch(e){}
@@ -687,21 +776,137 @@ function loadGoogleVoiceCache(){
     if(c&&Array.isArray(c.voices))gVoiceCache={ts:Number(c.ts)||0,voices:c.voices.map(normalizeGoogleVoice).filter(Boolean)};
   }catch(e){}
 }
+const G_CUSTOM_KEY='gcustomvoices';
+let gCustomVoices=[];
+const TONE_DEFS=[
+  {id:'soft',label:'ناعم',re:/\b(soft|smooth|gentle|calm|relaxed)\b|ناعم|هادئ|لطيف|سلس/i},
+  {id:'rough',label:'خشن/غليظ',re:/\b(gravelly|rough|hard|deep)\b|\blow pitch\b|أجش|خشن|غليظ/i},
+  {id:'warm',label:'دافئ',re:/\b(warm|friendly|approachable)\b|دافئ|ودود|عفوي/i},
+  {id:'energetic',label:'حيوي',re:/\b(energetic|upbeat|lively)\b|متحمس|حيوي|مرح|شبابي/i},
+  {id:'firm',label:'حازم',re:/\b(firm|authoritative|commanding)\b|حازم|جريء/i},
+  {id:'formal',label:'رسمي/معلوماتي',re:/\b(professional|formal|corporate)\b|معلوماتي|خبير|رسمي|متّزن|ناضج/i},
+  {id:'clear',label:'واضح',re:/\b(bright|sharp)\b|\bhigh pitch\b|واضح|مشرق/i},
+  {id:'calm',label:'هادئ',re:/\bcalm\b|هادئ/i}
+];
+const ACCENT_DEFS=[
+  [/\bfrom the arab world\b/i,'عربي'],
+  [/\b(saudi|saudi arabian)\b/i,'سعودي'],
+  [/\b(emirati|uae)\b/i,'إماراتي'],
+  [/\b(qatari|qatar)\b/i,'قطري'],
+  [/\b(kuwaiti|kuwait)\b/i,'كويتي'],
+  [/\b(bahraini|bahrain)\b/i,'بحريني'],
+  [/\b(omani|oman)\b/i,'عماني'],
+  [/\b(egyptian|egypt)\b/i,'مصري'],
+  [/\b(lebanese|lebanon)\b/i,'لبناني'],
+  [/\b(moroccan|morocco)\b/i,'مغربي'],
+  [/\b(algerian|algeria)\b/i,'جزائري'],
+  [/\b(tunisian|tunisia)\b/i,'تونسي'],
+  [/\b(iraqi|iraq)\b/i,'عراقي'],
+  [/\b(syrian|syria)\b/i,'سوري'],
+  [/\b(jordanian|jordan)\b/i,'أردني'],
+  [/\b(palestinian|palestine)\b/i,'فلسطيني'],
+  [/\b(yemeni|yemen)\b/i,'يمني'],
+  [/\b(sudanese|sudan)\b/i,'سوداني'],
+  [/\b(gulf)\b/i,'خليجي'],
+  [/\b(levantine|levant)\b/i,'شامي'],
+  [/\b(maghrebi|maghreb)\b/i,'مغاربي'],
+  [/\b(arab)\b/i,'عربي'],
+  [/\b(german|germany)\b/i,'ألماني'],
+  [/\b(austrian|austria)\b/i,'نمساوي'],
+  [/\b(swiss|switzerland)\b/i,'سويسري'],
+  [/\b(american|usa|united states)\b/i,'أمريكي'],
+  [/\b(british|britain|english|uk)\b/i,'بريطاني'],
+  [/\b(australian|australia)\b/i,'أسترالي'],
+  [/\b(canadian|canada)\b/i,'كندي'],
+  [/\b(irish|ireland)\b/i,'أيرلندي'],
+  [/\b(scottish|scotland)\b/i,'اسكتلندي'],
+  [/\b(welsh|wales)\b/i,'ويلزي'],
+  [/\b(new zealand|kiwi)\b/i,'نيوزيلندي'],
+  [/\b(south african)\b/i,'جنوب أفريقي'],
+  [/\b(nigerian|nigeria)\b/i,'نيجيري'],
+  [/\b(kenyan|kenya)\b/i,'كيني'],
+  [/\b(ghanaian|ghana)\b/i,'غاني'],
+  [/\b(ethiopian|ethiopia)\b/i,'إثيوبي'],
+  [/\b(indian|india)\b/i,'هندي'],
+  [/\b(pakistani|pakistan)\b/i,'باكستاني'],
+  [/\b(bangladeshi|bangladesh)\b/i,'بنغلاديشي'],
+  [/\b(sri lankan)\b/i,'سريلانكي'],
+  [/\b(french|france)\b/i,'فرنسي'],
+  [/\b(spanish|spain)\b/i,'إسباني'],
+  [/\b(portuguese|portugal)\b/i,'برتغالي'],
+  [/\b(italian|italy)\b/i,'إيطالي'],
+  [/\b(greek|greece)\b/i,'يوناني'],
+  [/\b(turkish|turkey)\b/i,'تركي'],
+  [/\b(russian|russia)\b/i,'روسي'],
+  [/\b(ukrainian|ukraine)\b/i,'أوكراني'],
+  [/\b(polish|poland)\b/i,'بولندي'],
+  [/\b(czech)\b/i,'تشيكي'],
+  [/\b(hungarian|hungary)\b/i,'هنغاري'],
+  [/\b(romanian|romania)\b/i,'روماني'],
+  [/\b(dutch|netherlands|holland)\b/i,'هولندي'],
+  [/\b(swedish|sweden)\b/i,'سويدي'],
+  [/\b(norwegian|norway)\b/i,'نرويجي'],
+  [/\b(danish|denmark)\b/i,'دنماركي'],
+  [/\b(finnish|finland)\b/i,'فنلندي'],
+  [/\b(japanese|japan)\b/i,'ياباني'],
+  [/\b(korean|korea)\b/i,'كوري'],
+  [/\b(chinese|china|mandarin|cantonese)\b/i,'صيني'],
+  [/\b(thai|thailand)\b/i,'تايلاندي'],
+  [/\b(vietnamese|vietnam)\b/i,'فيتنامي'],
+  [/\b(indonesian|indonesia)\b/i,'إندونيسي'],
+  [/\b(malaysian|malaysia)\b/i,'ماليزي'],
+  [/\b(filipino|philippines)\b/i,'فلبيني'],
+  [/\b(persian|iranian|iran)\b/i,'إيراني'],
+  [/\b(hebrew|israeli|israel)\b/i,'عبري'],
+  [/\b(brazilian|brazil)\b/i,'برازيلي'],
+  [/\b(mexican|mexico)\b/i,'مكسيكي'],
+  [/\b(argentinian|argentina)\b/i,'أرجنتيني'],
+  [/\b(chilean|chile)\b/i,'تشيلي'],
+  [/\b(colombian|colombia)\b/i,'كولومبي'],
+  [/\b(peruvian|peru)\b/i,'بيروفي']
+];
+const LANG_ACCENT={ar:'عربي',en:'إنجليزي',de:'ألماني',fr:'فرنسي',es:'إسباني',it:'إيطالي',pt:'برتغالي',tr:'تركي',ru:'روسي',hi:'هندي',ur:'أردي',fa:'فارسي',he:'عبري',ja:'ياباني',ko:'كوري',zh:'صيني',nl:'هولندي',pl:'بولندي',sv:'سويدي',no:'نرويجي',da:'دنماركي',fi:'فنلندي',el:'يوناني',cs:'تشيكي',hu:'هنغاري',ro:'روماني',uk:'أوكراني',id:'إندونيسي',ms:'ماليزي',th:'تايلاندي',vi:'فيتنامي',fil:'فلبيني',bn:'بنغلاديشي',ta:'تاميلي',te:'تيلوغو',mr:'مراثي',gu:'غوجاراتي',kn:'كانادي',ml:'مالايالامي',pa:'بنجابي',sw:'سواحيلي'};
+
 function normalizeGoogleVoice(v){
   if(!v)return null;
-  if(typeof v==='string')return {id:v,name:v,desc:'',lang:'',gender:'',type:''};
+  if(typeof v==='string')return {id:v,name:v,desc:'',lang:'',gender:'',type:'',age:'',accent:'',tone:'',custom:false};
   const id=v.id||v.voice_id||v.voiceId||v.name||v.display_name||v.displayName||'';
   if(!id)return null;
   const name=v.display_name||v.displayName||v.name||id;
   const lr=v.language_code||v.languageCode||v.language_codes||v.languageCodes||v.lang||v.language||'';
-  return {id:String(id),name:String(name),desc:String(v.description||v.desc||''),lang:Array.isArray(lr)?lr.join(', '):String(lr||''),gender:String(v.gender||''),type:String(v.type||'')};
+  return {
+    id:String(id),name:String(name),desc:String(v.description||v.desc||''),
+    lang:Array.isArray(lr)?lr.join(', '):String(lr||''),gender:String(v.gender||''),
+    type:String(v.type||''),age:String(v.age||''),accent:String(v.accent||''),
+    tone:String(v.tone||''),custom:!!(v.custom||v.type==='custom')
+  };
 }
 function genderLabel(g){
   const s=String(g||'').toLowerCase();
   if(s==='female')return 'أنثى';
   if(s==='male')return 'ذكر';
   if(s==='neutral')return 'محايد';
+  if(s==='unknown'||s==='unspecified')return 'غير محدد';
   return g||'';
+}
+function loadCustomGoogleVoices(){
+  gCustomVoices=[];
+  try{
+    const a=JSON.parse(lsGet(G_CUSTOM_KEY)||'[]');
+    if(!Array.isArray(a))return;
+    const seen=new Set();
+    for(const raw of a){
+      const v=normalizeGoogleVoice(raw);
+      if(!v||!v.id||seen.has(v.id))continue;
+      seen.add(v.id);v.type='custom';v.custom=true;gCustomVoices.push(v);
+    }
+  }catch(e){}
+}
+function saveCustomGoogleVoices(){
+  try{
+    const clean=gCustomVoices.map(v=>{const {_meta,...rest}=v;return rest});
+    localStorage.setItem(G_CUSTOM_KEY,JSON.stringify(clean));
+  }catch(e){}
 }
 function getGoogleVoiceCatalog(){
   const base=GOOGLE_STATIC_CATALOG.map(v=>({...v}));
@@ -711,58 +916,192 @@ function getGoogleVoiceCatalog(){
     if(byId.has(v.id)){const old=byId.get(v.id);Object.assign(old,v,{desc:v.desc||old.desc});}
     else{base.push(v);byId.set(v.id,v)}
   });
+  (gCustomVoices||[]).forEach(raw=>{
+    const v=normalizeGoogleVoice(raw);if(!v)return;
+    v.type='custom';v.custom=true;
+    if(!byId.has(v.id)){base.push(v);byId.set(v.id,v)}
+  });
   return base;
 }
 function googleVoiceNames(){return getGoogleVoiceCatalog().map(v=>v.id)}
-function voiceLabel(v){
-  let s=v.name||v.id;
-  if(v.desc)s+=' — '+v.desc;
-  if(v.lang)s+=' · '+v.lang;
-  if(v.gender)s+=' · '+genderLabel(v.gender);
-  return s;
+function inferGender(v){
+  if(v.gender){const g=String(v.gender).toLowerCase();if(g==='male'||g==='female'||g==='neutral')return g;return g}
+  const s=(v.desc||'')+' '+(v.name||'');
+  if(/\b(female|woman|girl|lady|she)\b|أنثى|امرأة|فتاة|بنت/i.test(s))return 'female';
+  if(/\b(male|man|boy|gentleman|he)\b|ذكر|رجل|ولد|شاب/i.test(s))return 'male';
+  if(/\bneutral\b|محايد/i.test(s))return 'neutral';
+  return '';
 }
-function getGoogleVoice(){return ($('gvoiceManual').value.trim()||$('gvoice').value||'Kore')}
-function getOrGeminiVoice(){return ($('orGvoiceManual').value.trim()||$('orGvoice').value||'Kore')}
-
-function renderGoogleVoiceFilterOptions(catalog){
-  const langSel=$('gvoiceLang'),genSel=$('gvoiceGender');
-  if(!langSel||!genSel)return;
-  const langs=[...new Set(catalog.flatMap(v=>String(v.lang||'').split(',').map(s=>s.trim()).filter(Boolean)))].sort();
-  const gens=[...new Set(catalog.map(v=>v.gender).filter(Boolean))];
-  const lv=langSel.value,gv=genSel.value;
-  langSel.innerHTML='<option value="">كل اللغات</option>'+langs.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
-  genSel.innerHTML='<option value="">كل الأجناس</option>'+gens.map(x=>`<option value="${esc(x)}">${esc(genderLabel(x))}</option>`).join('');
-  langSel.value=langs.includes(lv)?lv:'';
-  genSel.value=gens.includes(gv)?gv:'';
+function inferAge(v){
+  if(v.age)return String(v.age);
+  const s=v.desc||'';
+  let m=s.match(/(\d{1,2})\s*[- ]?\s*(?:year|yr)s?\s*[- ]?\s*old/i);
+  if(!m)m=s.match(/عمر(?:ه|ها)?\s*(\d{1,2})/);
+  if(!m)m=s.match(/(\d{1,2})\s*(?:سنة|عام)/);
+  return m?m[1]:'';
+}
+function inferAccent(v){
+  if(v.accent)return v.accent;
+  const s=(v.desc||'')+' '+(v.name||'');
+  for(const [re,label] of ACCENT_DEFS)if(re.test(s))return label;
+  const lang=String(v.lang||'').split(',')[0].trim();
+  if(!lang)return '';
+  const parts=lang.split('-'),base=parts[0].toLowerCase(),region=(parts[1]||'').toUpperCase();
+  if(base==='en')return region==='GB'?'بريطاني':region==='AU'?'أسترالي':region==='CA'?'كندي':region==='IN'?'هندي':region?'أمريكي':'إنجليزي';
+  return LANG_ACCENT[base]||'';
+}
+function toneTags(v){
+  const s=(v.desc||'')+' '+(v.name||'');
+  return TONE_DEFS.filter(t=>t.re.test(s)).map(t=>t.id);
+}
+function toneLabel(id){
+  const t=TONE_DEFS.find(x=>x.id===id);
+  return t?t.label:id;
+}
+function voiceMeta(v){
+  if(v._meta)return v._meta;
+  v._meta={gender:inferGender(v),age:inferAge(v),accent:inferAccent(v),tones:toneTags(v)};
+  return v._meta;
+}
+function voiceMetaLine(v){
+  const m=voiceMeta(v),parts=[];
+  if(v.custom)parts.push('مخصص');
+  if(m.gender)parts.push(genderLabel(m.gender));
+  if(m.age)parts.push(m.age+' سنة');
+  if(m.accent)parts.push(m.accent);
+  if(m.tones.length)parts.push(m.tones.map(toneLabel).join('، '));
+  return parts.join(' · ')||v.desc||'Google';
+}
+function voiceShortLabel(v){
+  const m=voiceMeta(v),parts=[v.name||v.id];
+  if(v.custom)parts.push('مخصص');
+  else{
+    if(m.gender)parts.push(genderLabel(m.gender));
+    if(m.age)parts.push(m.age+' سنة');
+    if(m.accent)parts.push(m.accent);
+    if(v.desc&&v.desc.length<=25)parts.push(v.desc);
+  }
+  return parts.join(' · ');
+}
+function getGoogleVoice(){return ($('gvoice').value||'Kore')}
+function updateGoogleVoiceTrigger(){
+  const v=getGoogleVoiceCatalog().find(x=>x.id===$('gvoice').value);
+  const el=$('gVoiceTriggerText');
+  if(el)el.textContent=v?voiceShortLabel(v):'اختر صوتاً';
+}
+function setGoogleVoiceSelection(id,save){
+  const sel=$('gvoice');
+  if(!id||![...sel.options].some(o=>o.value===id))return false;
+  sel.value=id;updateGoogleVoiceTrigger();
+  if(save)keyState();
+  return true;
 }
 function renderGoogleVoicePicker(preferred){
-  const catalog=getGoogleVoiceCatalog();
-  renderGoogleVoiceFilterOptions(catalog);
-  const q=($('gvoiceSearch').value||'').trim().toLowerCase();
-  const lang=$('gvoiceLang').value||'';
-  const gen=$('gvoiceGender').value||'';
+  const catalog=getGoogleVoiceCatalog(),sel=$('gvoice');
+  if(preferred&&catalog.some(v=>v.id===preferred))sel.value=preferred;
+  if(!catalog.some(v=>v.id===sel.value))sel.value=catalog.some(v=>v.id==='Kore')?'Kore':(catalog[0]?.id||'');
+  updateGoogleVoiceTrigger();
+  const q=($('gvoiceSearch')?.value||'').trim().toLowerCase();
+  const gender=$('gvoiceGender')?.value||'';
+  const tone=$('gvoiceTone')?.value||'';
+  const fb=$('gVoiceFilterBtn');
+  if(fb){const active=!!(gender||tone);fb.textContent=active?'تصفية •':'تصفية';fb.classList.toggle('on',active)}
   const list=catalog.filter(v=>{
-    const hay=(v.id+' '+v.name+' '+v.desc+' '+v.lang+' '+v.gender).toLowerCase();
-    const langs=String(v.lang||'').split(',').map(s=>s.trim());
-    return (!q||hay.includes(q))&&(!lang||langs.includes(lang))&&(!gen||v.gender===gen);
+    const m=voiceMeta(v);
+    const hay=[v.id,v.name,v.desc,v.lang,m.gender,genderLabel(m.gender),m.age,m.accent,v.custom?'مخصص':'',...m.tones.map(toneLabel)].join(' ').toLowerCase();
+    return (!q||hay.includes(q))&&(!gender||m.gender===gender)&&(!tone||m.tones.includes(tone));
   });
-  const cur=preferred||$('gvoice').value;
-  $('gvoice').innerHTML=list.length
-    ?list.map(v=>`<option value="${esc(v.id)}">${esc(voiceLabel(v))}</option>`).join('')
-    :'<option value="">لا توجد نتائج</option>';
-  if(list.some(v=>v.id===cur))$('gvoice').value=cur;
-  else if(list.length)$('gvoice').value=list[0].id;
-  else $('gvoice').value='';
+  const box=$('gVoiceList');
+  if(box){
+    box.innerHTML=list.map(v=>{
+      const m=voiceMeta(v),selRow=v.id===sel.value;
+      return `<div class="g-voice-row${selRow?' sel':''}" data-voice="${esc(v.id)}" role="option" tabindex="0" aria-selected="${selRow}">
+        <span class="g-voice-main"><b>${esc(v.name)}</b><small>${esc(voiceMetaLine(v))}</small></span>
+        <button class="g-voice-info" type="button" data-info="${esc(v.id)}" title="عرض معلومات الصوت" aria-label="عرض معلومات ${esc(v.name)}">ℹ</button>
+      </div>`;
+    }).join('');
+    box.scrollTop=0;
+  }
+  const empty=$('gVoiceEmpty');if(empty)empty.hidden=!!list.length;
 }
 function renderGoogleVoiceOptions(preferred){
-  const catalog=getGoogleVoiceCatalog();
+  const catalog=getGoogleVoiceCatalog(),hidden=$('gvoice');
+  const current=hidden.value;
+  hidden.innerHTML=catalog.map(v=>`<option value="${esc(v.id)}">${esc(voiceShortLabel(v))}</option>`).join('');
+  if(preferred&&catalog.some(v=>v.id===preferred))hidden.value=preferred;
+  else if(catalog.some(v=>v.id===current))hidden.value=current;
   const ocur=$('orGvoice').value;
-  $('orGvoice').innerHTML=catalog.map(v=>`<option value="${esc(v.id)}">${esc(voiceLabel(v))}</option>`).join('');
+  $('orGvoice').innerHTML=catalog.map(v=>`<option value="${esc(v.id)}">${esc(voiceShortLabel(v))}</option>`).join('');
   if(catalog.some(v=>v.id===ocur))$('orGvoice').value=ocur;
   else $('orGvoice').value=catalog.some(v=>v.id==='Kore')?'Kore':(catalog[0]?.id||'');
   renderGoogleVoicePicker(preferred);
 }
 function fillOrGvoice(){renderGoogleVoiceOptions()}
+function addCustomGoogleVoice(name){
+  name=String(name||'').trim();
+  if(!name)return null;
+  const existing=getGoogleVoiceCatalog().find(v=>String(v.id).toLowerCase()===name.toLowerCase()||String(v.name).toLowerCase()===name.toLowerCase());
+  if(existing){setGoogleVoiceSelection(existing.id,true);return {voice:existing,created:false}}
+  const v={id:name,name,desc:'',lang:'',gender:'',type:'custom',age:'',accent:'',tone:'',custom:true};
+  gCustomVoices.push(v);saveCustomGoogleVoices();
+  renderGoogleVoiceOptions(name);renderVoiceSelects();
+  setGoogleVoiceSelection(name,true);
+  return {voice:v,created:true};
+}
+function deleteCustomGoogleVoice(id){
+  const v=gCustomVoices.find(x=>x.id===id);
+  if(!v)return false;
+  gCustomVoices=gCustomVoices.filter(x=>x.id!==id);saveCustomGoogleVoices();
+  const cur=$('gvoice').value;
+  renderGoogleVoiceOptions(cur===id?'Kore':cur);renderVoiceSelects();
+  keyState();
+  toast('حُذف الاسم المخصص');
+  return true;
+}
+function openVoiceInfo(id){
+  const v=getGoogleVoiceCatalog().find(x=>x.id===id);
+  if(!v)return;
+  const m=voiceMeta(v);
+  const rows=[
+    ['الاسم',v.name],
+    ['الجنس',m.gender?genderLabel(m.gender):'غير محدد'],
+    ['العمر',m.age?m.age+' سنة':'غير محدد'],
+    ['اللهجة/الجنسية',m.accent||'غير محدد'],
+    ['اللغة',v.lang||'غير محدد'],
+    ['النبرة',m.tones.length?m.tones.map(toneLabel).join('، '):'غير محدد'],
+    ['المصدر',v.custom?'مخصص':'Google'],
+    ['المعرّف',v.id]
+  ];
+  $('gInfoTitle').textContent=v.name;
+  $('gInfoBody').innerHTML=`<div class="g-info-grid">${rows.map(([k,val])=>`<b>${esc(k)}</b><span dir="auto">${esc(val)}</span>`).join('')}</div>`+
+    `<div class="g-info-desc">${esc(v.desc||'لا يوجد وصف إضافي.')}</div>`;
+  $('gInfoUse').dataset.voice=v.id;
+  $('gInfoDelete').dataset.voice=v.id;
+  $('gInfoDelete').style.display=v.custom?'':'none';
+  $('gInfoDelete').disabled=!v.custom;
+  $('gInfoOverlay').classList.add('show');
+  $('gInfoClose').focus();
+}
+function closeVoiceInfo(){$('gInfoOverlay').classList.remove('show')}
+function openVoicePanel(){
+  const p=$('gVoicePanel');if(!p)return;
+  renderGoogleVoicePicker();
+  p.hidden=false;
+  $('gVoiceTrigger').setAttribute('aria-expanded','true');
+  const f=$('gVoiceFilterPanel');if(f)f.hidden=true;
+  $('gVoiceFilterBtn').setAttribute('aria-expanded','false');
+  const cf=$('gCustomForm');if(cf)cf.hidden=true;
+  setTimeout(()=>{const s=$('gvoiceSearch');if(s)s.focus()},50);
+}
+function closeVoicePanel(){
+  const p=$('gVoicePanel');if(!p)return;
+  p.hidden=true;
+  $('gVoiceTrigger').setAttribute('aria-expanded','false');
+  const f=$('gVoiceFilterPanel');if(f)f.hidden=true;
+  $('gVoiceFilterBtn').setAttribute('aria-expanded','false');
+  const cf=$('gCustomForm');if(cf)cf.hidden=true;
+}
+
 
 function loadVoices(){try{const v=JSON.parse(localStorage.getItem('voices')||'null');return (v&&v.length)?v:DEFAULT_VOICES}catch(e){return DEFAULT_VOICES}}
 function saveVoices(v){try{localStorage.setItem('voices',JSON.stringify(v))}catch(e){}}
@@ -793,7 +1132,8 @@ function setOrModel(){
   chunks.forEach((c,i)=>{const sel=document.querySelector(`select[data-v="${i}"]`);if(sel)sel.value=c.voice||''});
 }
 function renderVoiceSelects(){
-  const opts=(isOrGemini()?googleVoiceNames().map(n=>[n,n]):voices.map(v=>[v.name,v.id]))
+  const cat=isOrGemini()?getGoogleVoiceCatalog():[];
+  const opts=(isOrGemini()?cat.map(v=>[v.name,v.id]):voices.map(v=>[v.name,v.id]))
     .map(([name,id])=>`<option value="${esc(id)}">${esc(name)}</option>`).join('');
   const cur=$('voiceSelect').value;
   $('voiceSelect').innerHTML=opts;
@@ -1000,16 +1340,6 @@ function renderGoogleManual(){
   $('gManualRow').style.display=gMode==='manual'?'flex':'none';
   if(gManual.model&&[...$('gmodel').options].some(o=>o.value===gManual.model))$('gmodel').value=gManual.model;
 }
-function renderGoogleModelOrder(){
-  const host=$('gModelOrder');if(!host)return;
-  host.innerHTML=gModelOrder.map((m,idx)=>`<div class="g-model-row" data-model="${esc(m)}">
-    <b>${gLabel(m)}</b>
-    <span>الحد</span><input type="number" min="0" step="1" data-limit="${esc(m)}" value="${gLimits[m]}" aria-label="حد ${gLabel(m)}">
-    <span class="grow" data-mremain="${esc(m)}"></span>
-    <button class="actbtn" type="button" data-up="${esc(m)}" ${idx===0?'disabled':''}>▲</button>
-    <button class="actbtn" type="button" data-down="${esc(m)}" ${idx===gModelOrder.length-1?'disabled':''}>▼</button>
-  </div>`).join('');
-}
 function updateGoogleQuotaUI(){
   if(!$('gQuotaSummary'))return;
   const usable=gAccounts.filter(a=>a.enabled&&a.key);
@@ -1022,13 +1352,6 @@ function updateGoogleQuotaUI(){
     const a=gAccounts.find(x=>x.id===card.dataset.acc);if(!a)return;
     const q=card.querySelector('[data-quota]');
     if(q)q.innerHTML=quotaAccountHTML(a);
-  });
-  gModelOrder.forEach(m=>{
-    const el=document.querySelector(`#gModelOrder [data-mremain="${m}"]`);
-    if(el){
-      const rem=usable.reduce((s,a)=>s+accountRemaining(a,m),0);
-      el.textContent=`متبقي ${rem}`;
-    }
   });
   const n=gAccounts.filter(a=>a.enabled&&a.key).length;
   const ks=$('gkeyState');
@@ -1060,6 +1383,7 @@ function renderGoogleAccounts(){
 }
 function loadGoogleState(){
   loadGoogleVoiceCache();
+  loadCustomGoogleVoices();
   let raw=null;try{raw=JSON.parse(lsGet(G_ACCOUNTS_KEY)||'null')}catch(e){}
   if(Array.isArray(raw)&&raw.length)gAccounts=raw.map(normalizeGAccount);
   else gAccounts=[newGAccount('حساب 1',lsGet('gkey')||'')];
@@ -1089,9 +1413,6 @@ function loadGoogleState(){
   ensureQuotaDay();
   saveGoogleAccounts();
   renderGoogleAccounts();
-  renderGoogleModelOrder();
-  $('gvoiceManual').value=lsGet('gmanualvoice')||'';
-  $('orGvoiceManual').value=lsGet('orgmanual')||'';
   const gv=lsGet('gvoice')||'Kore';
   renderGoogleVoiceOptions(gv);
   const og=lsGet('orgvoice');
@@ -1154,7 +1475,7 @@ $('gAccounts').addEventListener('click',e=>{
     if(!confirm(`حذف «${a.name}»؟`))return;
     gAccounts=gAccounts.filter(x=>x.id!==a.id);
     if(gManual.accountId===a.id)gManual.accountId=gAccounts[0]?gAccounts[0].id:'';
-    saveGoogleAccounts();renderGoogleAccounts();renderGoogleModelOrder();
+    saveGoogleAccounts();renderGoogleAccounts();
     return;
   }
   const edit=e.target.closest('[data-edit]');
@@ -1177,21 +1498,6 @@ $('gAccounts').addEventListener('click',e=>{
     if(a.exhausted)delete a.exhausted[m];
     saveGoogleAccounts();updateGoogleQuotaUI();
   }
-});
-$('gModelOrder').addEventListener('change',e=>{
-  const inp=e.target.closest('[data-limit]');if(!inp)return;
-  const m=inp.dataset.limit;
-  gLimits[m]=Math.max(0,Math.round(Number(inp.value)||0));
-  saveGoogleAccounts();updateGoogleQuotaUI();
-});
-$('gModelOrder').addEventListener('click',e=>{
-  const up=e.target.closest('[data-up]'),down=e.target.closest('[data-down]');
-  const m=up?up.dataset.up:(down?down.dataset.down:null);if(!m)return;
-  const i=gModelOrder.indexOf(m);if(i<0)return;
-  const j=up?i-1:i+1;
-  if(j<0||j>=gModelOrder.length)return;
-  [gModelOrder[i],gModelOrder[j]]=[gModelOrder[j],gModelOrder[i]];
-  saveGoogleAccounts();renderGoogleModelOrder();updateGoogleQuotaUI();
 });
 $('gRefreshVoices').onclick=async()=>{
   const key=googleAnyKey();
@@ -1223,18 +1529,51 @@ $('gRefreshVoices').onclick=async()=>{
   }finally{btn.disabled=false;btn.textContent=old}
 };
 $('gvoiceSearch').oninput=()=>renderGoogleVoicePicker();
-$('gvoiceLang').onchange=()=>renderGoogleVoicePicker();
 $('gvoiceGender').onchange=()=>renderGoogleVoicePicker();
-$('gvoice').addEventListener('change',()=>{
-  $('gvoiceManual').value='';try{localStorage.removeItem('gmanualvoice')}catch(e){}
-  keyState();
+$('gvoiceTone').onchange=()=>renderGoogleVoicePicker();
+$('gVoiceTrigger').onclick=()=>{const p=$('gVoicePanel');p.hidden?openVoicePanel():closeVoicePanel()};
+$('gVoiceFilterBtn').onclick=()=>{
+  const f=$('gVoiceFilterPanel');f.hidden=!f.hidden;
+  $('gVoiceFilterBtn').setAttribute('aria-expanded',String(!f.hidden));
+};
+$('gVoiceAddCustom').onclick=()=>{const f=$('gCustomForm');f.hidden=false;$('gCustomName').focus()};
+$('gCustomSave').onclick=()=>{
+  const r=addCustomGoogleVoice($('gCustomName').value);
+  if(!r)return alert('أدخل اسم الصوت الجديد');
+  $('gCustomName').value='';$('gCustomForm').hidden=true;closeVoicePanel();
+  toast(r.created?'تمت إضافة الاسم المخصص':'الصوت موجود وتم اختياره');
+};
+$('gCustomName').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){e.preventDefault();$('gCustomSave').click()}
+  else if(e.key==='Escape'){e.preventDefault();$('gCustomForm').hidden=true}
 });
-$('gvoiceManual').oninput=keyState;
-$('orGvoice').addEventListener('change',()=>{
-  $('orGvoiceManual').value='';try{localStorage.removeItem('orgmanual')}catch(e){}
-  keyState();markDirty();
+$('gVoiceList').addEventListener('click',e=>{
+  const info=e.target.closest('[data-info]');
+  if(info){openVoiceInfo(info.dataset.info);closeVoicePanel();return}
+  const row=e.target.closest('[data-voice]');
+  if(row){setGoogleVoiceSelection(row.dataset.voice,true);closeVoicePanel()}
 });
-$('orGvoiceManual').oninput=()=>{try{localStorage.setItem('orgmanual',$('orGvoiceManual').value)}catch(e){}markDirty()};
+$('gVoiceList').addEventListener('keydown',e=>{
+  if(e.key!=='Enter'&&e.key!==' ')return;
+  const row=e.target.closest('[data-voice]');if(!row)return;
+  e.preventDefault();setGoogleVoiceSelection(row.dataset.voice,true);closeVoicePanel();
+});
+document.addEventListener('click',e=>{
+  const p=$('gVoicePanel');
+  if(p&&!p.hidden&&!$('gVoicePicker').contains(e.target))closeVoicePanel();
+});
+$('gInfoClose').onclick=closeVoiceInfo;
+$('gInfoOverlay').onclick=e=>{if(e.target.id==='gInfoOverlay')closeVoiceInfo()};
+$('gInfoUse').onclick=()=>{
+  const id=$('gInfoUse').dataset.voice;
+  setGoogleVoiceSelection(id,true);closeVoiceInfo();closeVoicePanel();
+};
+$('gInfoDelete').onclick=()=>{
+  const id=$('gInfoDelete').dataset.voice;
+  deleteCustomGoogleVoice(id);closeVoiceInfo();
+};
+$('gvoice').addEventListener('change',()=>{updateGoogleVoiceTrigger();keyState()});
+$('orGvoice').addEventListener('change',()=>{keyState();markDirty()});
 $('vCancel').onclick=()=>$('voiceOverlay').classList.remove('show');
 $('voiceOverlay').onclick=e=>{if(e.target.id==='voiceOverlay')$('voiceOverlay').classList.remove('show')};
 
@@ -1638,12 +1977,10 @@ async function orBlob(c,ctl){
   const model=$('model').value.trim();
   const geminiTts=/gemini/i.test(model)&&/tts/i.test(model);
   const body={model,input:c.text,response_format:geminiTts?'pcm':'mp3'};
-  const manual=geminiTts?$('orGvoiceManual').value.trim():'';
   if(geminiTts){
-    // Per-box choice wins, then the manual name, then the global picker.
-    // Never send a Fish voice id to a Gemini TTS model (or vice versa).
+    // Per-box choice wins, then the global picker. Never send a Fish voice id
+    // to a Gemini TTS model (or vice versa).
     if(c.voice&&googleVoiceNames().includes(c.voice))body.voice=c.voice;
-    else if(manual)body.voice=manual;
     else{const g=$('orGvoice').value;body.voice=googleVoiceNames().includes(g)?g:'Kore'}
   }else{
     const boxVoice=String(c.voice||'').trim(),globalV=String($('voiceSelect').value||'').trim();
@@ -1734,6 +2071,7 @@ async function googleBlob(c,ctl,slot){
     response_format:{type:'audio'},
     generation_config:{speech_config:[{voice:getGoogleVoice()}]}
   };
+  googleSendAt=Date.now();
   const r=await fetchT('https://generativelanguage.googleapis.com/v1beta/interactions',{method:'POST',signal:ctl.signal,headers:{'x-goog-api-key':slot.account.key,'Content-Type':'application/json'},body:JSON.stringify(body)},GOOGLE_TIMEOUT);
   const raw=await r.text();let j={};try{j=JSON.parse(raw)}catch(e){}
   if(!r.ok){
@@ -1951,19 +2289,21 @@ async function gen(i,opts){
     }
   }
 }
-// countdown shown inside a box before its request is sent (Google "generate all")
-function delayBefore(i,sec,myEpoch){
+// Wait until the gap (measured from the previous send) has elapsed.
+function delayUntil(i,target,myEpoch){
   return new Promise(res=>{
     if(stopReq||epoch!==myEpoch)return res();
     const m=$('m'+i),f2=n=>String(n).padStart(2,'0');
-    let s=sec;
-    const show=()=>{if(m)m.textContent=`بانتظار ${f2(Math.floor(s/60))}:${f2(s%60)} ثم الإرسال...`};
-    show();
-    const t=setInterval(()=>{
-      if(stopReq||epoch!==myEpoch){clearInterval(t);return res()}
-      s--;show();
-      if(s<=0){clearInterval(t);res()}
-    },1000);
+    let timer=null;
+    const tick=()=>{
+      if(stopReq||epoch!==myEpoch){if(timer)clearTimeout(timer);return res()}
+      const left=target-Date.now();
+      if(left<=0){if(m)m.textContent='';return res()}
+      const s=Math.ceil(left/1000);
+      if(m)m.textContent=`بانتظار ${f2(Math.floor(s/60))}:${f2(s%60)} ثم الإرسال...`;
+      timer=setTimeout(tick,Math.min(1000,left));
+    };
+    tick();
   });
 }
 function showKieRetryCountdown(i,readyAt,myEpoch){
@@ -2058,7 +2398,7 @@ $('allbtn').onclick=async()=>{
     }else if(gsec){
       for(const i of pending){
         if(stopReq||epoch!==myEpoch)break;
-        await delayBefore(i,gsec,myEpoch);
+        if(googleSendAt)await delayUntil(i,googleSendAt+gsec*1000,myEpoch);
         if(stopReq||epoch!==myEpoch)break;
         await gen(i);
       }
