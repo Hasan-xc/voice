@@ -276,7 +276,15 @@
     <select id="mode"><option value="chars">الأحرف</option><option value="words">الكلمات</option><option value="bytes">البايتات (UTF-8)</option><option value="tokens">التوكنز (تقريبي)</option></select>
     <input id="max" type="number" min="20" value="1500" title="الحد الأقصى لكل دفعة">
     <button id="splitbtn">✂️ تقسيم النص</button>
+    <button id="smartsplitbtn" class="sec" type="button">🤖 تقسيم ذكي</button>
   </div>
+  <div class="ai-split-row">
+    <span class="lbl-inline">موديل التقسيم</span>
+    <input id="smartModel" dir="ltr" aria-label="موديل التقسيم الذكي" placeholder="google/gemini-3.5-flash-lite">
+    <button type="button" class="ghost mini" id="smartSplitCancel" hidden>✕ إلغاء</button>
+    <span class="tag" id="smartSplitProg" aria-live="polite"></span>
+  </div>
+  <small class="ai-hint" id="smartSplitHint" hidden></small>
   <small>يقسّم عند نهاية الجملة (. ! ؟ ؛ … وسطر جديد)، ثم الفواصل، ثم بين الكلمات، ولا تُقطع كلمة أبداً. <span id="tokHint"></span></small>
 </div>
 
@@ -327,6 +335,7 @@
 <script src="js/chunks.js"></script>
 <script src="js/providers.js"></script>
 <script src="js/generate.js"></script>
+<script src="js/ai.js"></script>
 <script src="js/merge-zip.js"></script>
 <script src="js/init.js"></script>
 </body>

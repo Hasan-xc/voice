@@ -177,6 +177,7 @@ function keyState(){
     localStorage.setItem('gmodel',$('gmodel').value);localStorage.setItem('gstyle',$('gstyle').value);localStorage.setItem('gdelay',$('gdelay').value);
     if(typeof saveGoogleAccounts==='function')saveGoogleAccounts();
   }catch(e){}
+  if(typeof updateSmartSplitState==='function')updateSmartSplitState();
 }
 function setProvider(p,openBox){
   if(document.body.dataset.p!==p)cancelAll(false);
