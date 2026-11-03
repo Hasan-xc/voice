@@ -9,9 +9,15 @@ function loadGoogleVoiceCache(){
     const c=JSON.parse(localStorage.getItem(G_VOICES_KEY)||'null');
     if(c&&Array.isArray(c.voices))gVoiceCache={ts:Number(c.ts)||0,voices:c.voices.map(normalizeGoogleVoice).filter(Boolean)};
   }catch(e){}
+  gCatalogCache=null;
 }
 const G_CUSTOM_KEY='gcustomvoices';
 let gCustomVoices=[];
+// Memoized catalog: rebuilt only when gVoiceCache or gCustomVoices change.
+let gCatalogCache=null;
+let gOptionsCatalog=null;
+const G_VOICE_PAGE=40;
+let gVoiceFiltered=[],gVoiceShown=0;
 const TONE_DEFS=[
   {id:'soft',label:'ناعم',re:/\b(soft|smooth|gentle|calm|relaxed)\b|ناعم|هادئ|لطيف|سلس/i},
   {id:'rough',label:'خشن/غليظ',re:/\b(gravelly|rough|hard|deep)\b|\blow pitch\b|أجش|خشن|غليظ/i},
@@ -135,14 +141,16 @@ function loadCustomGoogleVoices(){
       seen.add(v.id);v.type='custom';v.custom=true;gCustomVoices.push(v);
     }
   }catch(e){}
+  gCatalogCache=null;
 }
 function saveCustomGoogleVoices(){
   try{
-    const clean=gCustomVoices.map(v=>{const {_meta,...rest}=v;return rest});
+    const clean=gCustomVoices.map(v=>{const {_meta,_hay,...rest}=v;return rest});
     localStorage.setItem(G_CUSTOM_KEY,JSON.stringify(clean));
   }catch(e){}
 }
 function getGoogleVoiceCatalog(){
+  if(gCatalogCache)return gCatalogCache;
   const base=GOOGLE_STATIC_CATALOG.map(v=>({...v}));
   const byId=new Map(base.map(v=>[v.id,v]));
   (gVoiceCache.voices||[]).forEach(raw=>{
@@ -155,6 +163,12 @@ function getGoogleVoiceCatalog(){
     v.type='custom';v.custom=true;
     if(!byId.has(v.id)){base.push(v);byId.set(v.id,v)}
   });
+  // Precompute metadata and the lowercase search string once per catalog build.
+  for(const v of base){
+    const m=voiceMeta(v);
+    v._hay=[v.id,v.name,v.desc,v.lang,m.gender,genderLabel(m.gender),m.age,m.accent,v.custom?'مخصص':'',...m.tones.map(toneLabel)].join(' ').toLowerCase();
+  }
+  gCatalogCache=base;
   return base;
 }
 function googleVoiceNames(){return getGoogleVoiceCatalog().map(v=>v.id)}
@@ -230,6 +244,35 @@ function setGoogleVoiceSelection(id,save){
   if(save)keyState();
   return true;
 }
+function googleVoiceRowHtml(v,selectedId){
+  const selRow=v.id===selectedId;
+  return `<div class="g-voice-row${selRow?' sel':''}" data-voice="${esc(v.id)}" role="option" tabindex="0" aria-selected="${selRow}">
+        <span class="g-voice-main"><b>${esc(v.name)}</b><small>${esc(voiceMetaLine(v))}</small></span>
+        <button class="g-voice-info" type="button" data-info="${esc(v.id)}" title="عرض معلومات الصوت" aria-label="عرض معلومات ${esc(v.name)}">ℹ</button>
+      </div>`;
+}
+function appendGoogleVoiceRows(){
+  const box=$('gVoiceList');if(!box)return;
+  const end=Math.min(gVoiceFiltered.length,gVoiceShown+G_VOICE_PAGE);
+  if(end<=gVoiceShown)return;
+  const selectedId=$('gvoice').value;
+  let html='';
+  for(let k=gVoiceShown;k<end;k++)html+=googleVoiceRowHtml(gVoiceFiltered[k],selectedId);
+  box.insertAdjacentHTML('beforeend',html);
+  gVoiceShown=end;
+}
+function resetGoogleVoiceList(list){
+  gVoiceFiltered=list;gVoiceShown=0;
+  const box=$('gVoiceList');
+  if(box){box.innerHTML='';box.scrollTop=0;appendGoogleVoiceRows()}
+  const empty=$('gVoiceEmpty');if(empty)empty.hidden=!!list.length;
+}
+// Infinite scroll: append the next batch when the user nears the end of the list.
+$('gVoiceList').addEventListener('scroll',()=>{
+  if(gVoiceShown>=gVoiceFiltered.length)return;
+  const box=$('gVoiceList');
+  if(box.scrollTop+box.clientHeight>=box.scrollHeight-80)appendGoogleVoiceRows();
+});
 function renderGoogleVoicePicker(preferred){
   const catalog=getGoogleVoiceCatalog(),sel=$('gvoice');
   if(preferred&&catalog.some(v=>v.id===preferred))sel.value=preferred;
@@ -240,32 +283,28 @@ function renderGoogleVoicePicker(preferred){
   const tone=$('gvoiceTone')?.value||'';
   const fb=$('gVoiceFilterBtn');
   if(fb){const active=!!(gender||tone);fb.textContent=active?'تصفية •':'تصفية';fb.classList.toggle('on',active)}
-  const list=catalog.filter(v=>{
-    const m=voiceMeta(v);
-    const hay=[v.id,v.name,v.desc,v.lang,m.gender,genderLabel(m.gender),m.age,m.accent,v.custom?'مخصص':'',...m.tones.map(toneLabel)].join(' ').toLowerCase();
-    return (!q||hay.includes(q))&&(!gender||m.gender===gender)&&(!tone||m.tones.includes(tone));
-  });
-  const box=$('gVoiceList');
-  if(box){
-    box.innerHTML=list.map(v=>{
-      const m=voiceMeta(v),selRow=v.id===sel.value;
-      return `<div class="g-voice-row${selRow?' sel':''}" data-voice="${esc(v.id)}" role="option" tabindex="0" aria-selected="${selRow}">
-        <span class="g-voice-main"><b>${esc(v.name)}</b><small>${esc(voiceMetaLine(v))}</small></span>
-        <button class="g-voice-info" type="button" data-info="${esc(v.id)}" title="عرض معلومات الصوت" aria-label="عرض معلومات ${esc(v.name)}">ℹ</button>
-      </div>`;
-    }).join('');
-    box.scrollTop=0;
+  // Filtering uses the precomputed metadata and lowercase haystack (no regex work here).
+  const list=[];
+  for(const v of catalog){
+    const m=v._meta;
+    if(q&&!(v._hay||'').includes(q))continue;
+    if(gender&&m.gender!==gender)continue;
+    if(tone&&!m.tones.includes(tone))continue;
+    list.push(v);
   }
-  const empty=$('gVoiceEmpty');if(empty)empty.hidden=!!list.length;
+  resetGoogleVoiceList(list);
 }
 function renderGoogleVoiceOptions(preferred){
   const catalog=getGoogleVoiceCatalog(),hidden=$('gvoice');
-  const current=hidden.value;
-  hidden.innerHTML=catalog.map(v=>`<option value="${esc(v.id)}">${esc(voiceShortLabel(v))}</option>`).join('');
+  const current=hidden.value,ocur=$('orGvoice').value;
+  if(catalog!==gOptionsCatalog){
+    const opts=catalog.map(v=>`<option value="${esc(v.id)}">${esc(voiceShortLabel(v))}</option>`).join('');
+    hidden.innerHTML=opts;
+    $('orGvoice').innerHTML=opts;
+    gOptionsCatalog=catalog;
+  }
   if(preferred&&catalog.some(v=>v.id===preferred))hidden.value=preferred;
   else if(catalog.some(v=>v.id===current))hidden.value=current;
-  const ocur=$('orGvoice').value;
-  $('orGvoice').innerHTML=catalog.map(v=>`<option value="${esc(v.id)}">${esc(voiceShortLabel(v))}</option>`).join('');
   if(catalog.some(v=>v.id===ocur))$('orGvoice').value=ocur;
   else $('orGvoice').value=catalog.some(v=>v.id==='Kore')?'Kore':(catalog[0]?.id||'');
   renderGoogleVoicePicker(preferred);
@@ -278,6 +317,7 @@ function addCustomGoogleVoice(name){
   if(existing){setGoogleVoiceSelection(existing.id,true);return {voice:existing,created:false}}
   const v={id:name,name,desc:'',lang:'',gender:'',type:'custom',age:'',accent:'',tone:'',custom:true};
   gCustomVoices.push(v);saveCustomGoogleVoices();
+  gCatalogCache=null;
   renderGoogleVoiceOptions(name);renderVoiceSelects();
   setGoogleVoiceSelection(name,true);
   return {voice:v,created:true};
@@ -286,6 +326,7 @@ function deleteCustomGoogleVoice(id){
   const v=gCustomVoices.find(x=>x.id===id);
   if(!v)return false;
   gCustomVoices=gCustomVoices.filter(x=>x.id!==id);saveCustomGoogleVoices();
+  gCatalogCache=null;
   const cur=$('gvoice').value;
   renderGoogleVoiceOptions(cur===id?'Kore':cur);renderVoiceSelects();
   keyState();
@@ -319,8 +360,8 @@ function openVoiceInfo(id){
 function closeVoiceInfo(){$('gInfoOverlay').classList.remove('show')}
 function openVoicePanel(){
   const p=$('gVoicePanel');if(!p)return;
-  renderGoogleVoicePicker();
   p.hidden=false;
+  renderGoogleVoicePicker();
   $('gVoiceTrigger').setAttribute('aria-expanded','true');
   const f=$('gVoiceFilterPanel');if(f)f.hidden=true;
   $('gVoiceFilterBtn').setAttribute('aria-expanded','false');
