@@ -206,7 +206,13 @@ try{
   const km=localStorage.getItem('kmodel');if(km)$('kmodel').value=km;
   const gm=localStorage.getItem('gmodel');if(gm&&[...$('gmodel').options].some(o=>o.value===gm))$('gmodel').value=gm;
   const gs=localStorage.getItem('gstyle');if(gs)$('gstyle').value=gs;
-  const gd=localStorage.getItem('gdelay');if(gd&&[...$('gdelay').options].some(o=>o.value===gd))$('gdelay').value=gd;
+  const gd=localStorage.getItem('gdelay');
+  if(gd){
+    // migrate the old minutes-based values (1/2/3/5 min) to the new 60s maximum
+    const mig={'1':'60','2':'60','3':'60','5':'60'};
+    const v=mig[gd]||gd;
+    if([...$('gdelay').options].some(o=>o.value===v))$('gdelay').value=v;
+  }
   const kt=localStorage.getItem('ktemp');if(kt!==null&&kt!==''&&Number.isFinite(Number(kt)))$('ktemp').value=kt;
   const kf=localStorage.getItem('kfill');if(kf==='1')$('kfill').checked=true;
 }catch(e){}

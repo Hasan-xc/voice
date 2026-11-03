@@ -247,14 +247,14 @@ $('allbtn').onclick=async()=>{
   }
   $('allbtn').style.display='none';$('stopbtn').style.display='';
   const pending=chunks.map((c,i)=>i).filter(i=>!chunks[i].blob);
-  const gsec=P()==='google'?(Math.max(1,parseInt($('gdelay').value)||1))*60:0;
+  const gdelaySec=P()==='google'?Math.max(0,parseInt($('gdelay').value,10)||0):0;
   try{
     if(P()==='kie'){
       await runKieQueue(pending,myEpoch);
-    }else if(gsec){
+    }else if(P()==='google'){
       for(const i of pending){
         if(stopReq||epoch!==myEpoch)break;
-        if(googleSendAt)await delayUntil(i,googleSendAt+gsec*1000,myEpoch);
+        if(gdelaySec&&googleSendAt)await delayUntil(i,googleSendAt+gdelaySec*1000,myEpoch);
         if(stopReq||epoch!==myEpoch)break;
         await gen(i);
       }
