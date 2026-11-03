@@ -82,4 +82,23 @@ assert.strictEqual(ai.aiParseBreaks('لا يوجد JSON هنا'), null);
   assert.strictEqual(segs.join(' '), norm);
 }
 
+// 10) Tag whitelists and text comparison (director)
+assert.ok(ai.aiTagList('gemini').includes('short pause'));
+assert.ok(ai.aiTagList('gemini').includes('laugh'));
+assert.ok(ai.aiTagList('fish').includes('whisper'));
+assert.strictEqual(ai.aiStripTags('مرحبا <laugh> بالعالم', 'gemini'), 'مرحبا بالعالم');
+assert.strictEqual(ai.aiStripTags('مرحبا <short pause> بالعالم', 'gemini'), 'مرحبا بالعالم');
+assert.strictEqual(ai.aiStripTags('مرحبا <throat-clearing> بالعالم', 'gemini'), 'مرحبا بالعالم');
+assert.strictEqual(ai.aiStripTags('مرحبا [long pause] بالعالم', 'fish'), 'مرحبا بالعالم');
+assert.ok(ai.aiTextMatches('مرحبا بالعالم', 'مرحبا <laugh> بالعالم', 'gemini'));
+assert.ok(!ai.aiTextMatches('مرحبا بالعالم', 'مرحبا <unknown> بالعالم', 'gemini'));
+assert.ok(ai.aiTextMatches('مرحبا', '[whisper] مرحبا', 'fish'));
+assert.ok(!ai.aiTextMatches('مرحبا', '<whisper> مرحبا', 'fish'));
+assert.ok(ai.aiTextMatches('مرحبا <sigh>', 'مرحبا', 'gemini'));
+
+// 11) Director item parsing + style cleaning
+assert.deepStrictEqual(ai.aiParseDirectorItems('{"items":[{"i":1,"style":"هادئ"}]}'), [{ i: 1, style: 'هادئ' }]);
+assert.strictEqual(ai.aiParseDirectorItems('nope'), null);
+assert.strictEqual(ai.aiCleanStyle('  هادئ   ودافئ '), 'هادئ ودافئ');
+
 console.log('ai.test.js: all tests passed');

@@ -108,6 +108,14 @@ body:not([data-p=or]) select[data-v]{display:none}
 .ai-split-row .tag{font-size:11.5px}
 .ai-hint{display:block;margin-top:6px;color:var(--warn);font-size:12px;font-weight:700}
 button:disabled{opacity:.55;cursor:not-allowed}
+.director{background:var(--cream);border:1px solid var(--line);border-radius:12px;padding:8px 12px;margin-top:8px}
+.director-top{gap:8px;align-items:center}
+.director-top button{flex:0 0 auto;white-space:nowrap}
+.director-desc{flex:1;min-width:170px;font-size:12.5px;padding:6px 9px;height:34px;border-radius:8px}
+.director-opts{gap:14px;margin-top:6px;font-size:12.5px}
+.director-opts label{display:inline-flex;align-items:center;gap:5px;cursor:pointer;color:var(--ink)}
+.director-opts input{width:auto;height:auto}
+.style-inp{flex:1;min-width:150px;font-size:12.5px;padding:5px 9px;border-radius:8px}
 
 /* text field like the reference file */
 .ta-wrap{position:relative;display:flex;flex-direction:column}

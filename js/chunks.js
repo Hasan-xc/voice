@@ -20,7 +20,8 @@ $('splitbtn').onclick=()=>{
   if(chunks.some(c=>c.blob)&&!confirm('توجد مقاطع مولّد صوتها. إعادة التقسيم ستحذف الصوت المولّد لها. متابعة؟'))return;
   cancelAll(false);
   releaseUrls();
-  chunks=smartSplit(t,meas[$('mode').value],Math.max(20,+$('max').value||1500)).map((text,i)=>({text,voice:'',name:defName(i)}));
+  if(typeof clearDirectorUndo==='function')clearDirectorUndo();
+  chunks=smartSplit(t,meas[$('mode').value],Math.max(20,+$('max').value||1500)).map((text,i)=>({text,voice:'',name:defName(i),style:''}));
   render();markDirty();$('ctrl').scrollIntoView({behavior:'smooth'});
 };
 
@@ -49,6 +50,7 @@ function render(){
       <button class="ghost mini" data-c="${i}" style="display:none">✕ إلغاء</button></span></div>
       <textarea data-t="${i}">${esc(c.text)}</textarea>
       <div class="row" style="margin-top:4px"><span class="lbl" style="margin:0">اسم الملف</span><input class="fname" data-n="${i}" dir="ltr" value="${esc(c.name||defName(i))}" aria-label="اسم ملف المقطع ${i+1}"></div>
+      <div class="row" style="margin-top:4px"><span class="lbl" style="margin:0">أسلوب الإلقاء</span><input class="style-inp" data-s="${i}" dir="auto" value="${esc(c.style||'')}" placeholder="اختياري — مثلاً: هادئ ودافئ" aria-label="أسلوب إلقاء المقطع ${i+1}"></div>
       <div class="tag" id="s${i}"></div><div class="tag" id="m${i}"></div><div class="tag" id="u${i}"></div><div id="a${i}"></div>`;
     $('chunks').appendChild(d);cs(i);
     if(c.blob){$('c'+i).classList.add('done');$('m'+i).className='tag ok';$('m'+i).textContent='تم ✓';renderUsed(i,c);
@@ -57,6 +59,7 @@ function render(){
   renderVoiceSelects();
   chunks.forEach((c,i)=>{const sel=document.querySelector(`select[data-v="${i}"]`);if(sel)sel.value=c.voice||''});
   $('ctrl').style.display=chunks.length?'block':'none';$('mergeout').innerHTML='';prog();
+  if(typeof updateDirectorState==='function')updateDirectorState();
 }
 function cs(i){
   const t=chunks[i].text,tk=tokens(t);
@@ -72,6 +75,10 @@ function prog(){
   $('costest').textContent=P()!=='or'?'':`تقدير التكلفة لو مدفوع: $${(totalBytes/1e6*15).toFixed(3)}`;
 }
 $('chunks').addEventListener('input',e=>{
+  if(e.target.dataset.s!==undefined){
+    const c=chunks[+e.target.dataset.s];if(!c)return;
+    c.style=e.target.value;markDirty();return;
+  }
   if(e.target.dataset.t!==undefined){
     cancelAll(false);
     const i=+e.target.dataset.t,c=chunks[i];c.text=e.target.value;c.blob=null;c.usedAccount='';c.usedModel='';

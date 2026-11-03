@@ -15,6 +15,8 @@ async function orBlob(c,ctl){
   const model=$('model').value.trim();
   const geminiTts=/gemini/i.test(model)&&/tts/i.test(model);
   const body={model,input:c.text,response_format:geminiTts?'pcm':'mp3'};
+  const style=String(c.style||'').trim();
+  if(style)body.instructions=style;
   if(geminiTts){
     // Per-box choice wins, then the global picker. Never send a Fish voice id
     // to a Gemini TTS model (or vice versa).
@@ -101,7 +103,7 @@ function googleQuotaKind(text){
   return '';
 }
 async function googleBlob(c,ctl,slot){
-  const text={type:'text',text:c.text},style=$('gstyle').value.trim();
+  const text={type:'text',text:c.text},style=String(c.style||'').trim()||$('gstyle').value.trim();
   if(style)text.annotations=[{type:'speech_metadata',style}];
   const body={
     model:slot.model,

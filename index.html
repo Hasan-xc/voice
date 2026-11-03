@@ -279,8 +279,8 @@
     <button id="smartsplitbtn" class="sec" type="button">🤖 تقسيم ذكي</button>
   </div>
   <div class="ai-split-row">
-    <span class="lbl-inline">موديل التقسيم</span>
-    <input id="smartModel" dir="ltr" aria-label="موديل التقسيم الذكي" placeholder="google/gemini-3.5-flash-lite">
+    <span class="lbl-inline">موديل الذكاء الاصطناعي</span>
+    <input id="smartModel" dir="ltr" aria-label="موديل الذكاء الاصطناعي" title="يُستخدم للتقسيم الذكي والمخرج الصوتي" placeholder="google/gemini-3.5-flash-lite">
     <button type="button" class="ghost mini" id="smartSplitCancel" hidden>✕ إلغاء</button>
     <span class="tag" id="smartSplitProg" aria-live="polite"></span>
   </div>
@@ -295,6 +295,21 @@
     <button id="stopbtn" class="stop" style="display:none">⏹ إيقاف</button>
     <button id="mergebtn" class="sec">🔗 دمج</button>
     <button id="zipbtn" class="sec">📦 ZIP</button>
+  </div>
+  <div class="director" id="directorBox">
+    <div class="row director-top">
+      <button id="directorBtn" class="sec" type="button">🎬 المخرج الصوتي</button>
+      <input id="directorDesc" class="director-desc" placeholder="وصف عام للعمل (اختياري): كتاب صوتي هادئ، بودكاست حماسي..." aria-label="وصف عام للعمل">
+      <button id="directorCancel" class="ghost mini" type="button" hidden>✕ إلغاء</button>
+      <button id="directorUndo" class="ghost mini" type="button" hidden>↩ تراجع عن المخرج</button>
+    </div>
+    <div class="row director-opts">
+      <label><input type="checkbox" id="dirStyle" checked> أسلوب الإلقاء لكل مقطع</label>
+      <label><input type="checkbox" id="dirTags" checked> وسوم وقفات/مشاعر</label>
+      <label><input type="checkbox" id="dirVoices"> توزيع الأصوات على المتحدثين</label>
+    </div>
+    <div class="tag" id="directorProgress" aria-live="polite"></div>
+    <small id="directorHint" class="ai-hint" hidden></small>
   </div>
   <div class="bar"><i id="fill"></i></div>
   <div class="row" style="justify-content:space-between">

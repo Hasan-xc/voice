@@ -123,6 +123,40 @@ function aiSegmentsFromUnits(units,breaks,measure,max,splitLong,minRatio){
   return out;
 }
 
+// ---- AI director: tag whitelists / text validation (pure) ----------------
+// Gemini 3.8 TTS inline vocal tags (official prompting guide).
+const AI_TAGS_GEMINI=['argh','breath','heavy breath','exhales','cackle','cheer','chuckle','chuckles','cough','cry','gasp','giggle','groan','growl','grunt','grr','hiss','laugh','laughter','moan','pant','pff','phew','scream','shout','shriek','sigh','sighs','sneeze','snicker','snort','sob','throat-clearing','tsk','whimper','whispers','whispering','yawn','short pause','long pause'];
+// Fish Audio S2 core + well-tested inline tags (official docs/blog).
+const AI_TAGS_FISH=['whisper','whispers','whispering','laugh','laughs','laughing','chuckle','chuckling','giggle','sigh','sighs','gasp','pause','long pause','emphasis','angry','excited','sad','surprised','inhale','exhale','sobbing','crying','groan','soft voice','loud voice','shouting','low voice'];
+function aiTagList(mode){return mode==='fish'?AI_TAGS_FISH:mode==='gemini'?AI_TAGS_GEMINI:[]}
+function aiTagRegex(mode){
+  const list=aiTagList(mode);
+  if(!list.length)return null;
+  const body=list.map(t=>t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/\s+/g,'\\s+')).join('|');
+  return mode==='fish'?new RegExp('\\[\\s*(?:'+body+')\\s*\\]','gi'):new RegExp('<\\s*(?:'+body+')\\s*>','gi');
+}
+// Remove only whitelisted tags, then normalize whitespace.
+function aiStripTags(text,mode){
+  let s=String(text==null?'':text);
+  const re=aiTagRegex(mode);
+  if(re)s=s.replace(re,' ');
+  return aiNormalize(s);
+}
+// The model may only add/remove whitelisted tags; the spoken text must be identical.
+function aiTextMatches(original,suggested,mode){
+  return aiStripTags(original,mode)===aiStripTags(suggested,mode);
+}
+function aiParseDirectorItems(raw){
+  const j=aiExtractJson(raw);
+  if(!j)return null;
+  if(Array.isArray(j.items))return j.items;
+  if(Array.isArray(j))return j;
+  return null;
+}
+function aiCleanStyle(s){
+  return typeof s==='string'?s.replace(/\s+/g,' ').trim().slice(0,400):'';
+}
+
 // ---- providers / models (browser only) ------------------------------------
 function aiContentText(c){
   if(typeof c==='string')return c;
@@ -246,7 +280,8 @@ function aiSetBusy(busy,label){
 function applyAiSplit(segs){
   cancelAll(false);
   releaseUrls();
-  chunks=segs.map((text,i)=>({text,voice:'',name:defName(i)}));
+  if(typeof clearDirectorUndo==='function')clearDirectorUndo();
+  chunks=segs.map((text,i)=>({text,voice:'',name:defName(i),style:''}));
   render();markDirty();$('ctrl').scrollIntoView({behavior:'smooth'});
 }
 async function smartSplitAI(){
@@ -292,6 +327,183 @@ async function smartSplitAI(){
   }
 }
 
+// ---- UI: AI voice director ------------------------------------------------
+let directorCtl=null,directorUndo=null;
+function directorInfo(){
+  if(P()==='kie')return null;
+  return aiProviderInfo();
+}
+function directorOptions(){
+  return {
+    style:!!($('dirStyle')&&$('dirStyle').checked),
+    tags:!!($('dirTags')&&$('dirTags').checked),
+    voices:!!($('dirVoices')&&$('dirVoices').checked)
+  };
+}
+function directorTagMode(){
+  if(P()==='google')return 'gemini';
+  if(P()==='or')return (typeof isOrGemini==='function'&&isOrGemini())?'gemini':'fish';
+  return '';
+}
+function directorVoiceList(){
+  if(P()==='google'||(typeof isOrGemini==='function'&&isOrGemini()))return googleVoiceNames();
+  return (typeof voices!=='undefined'?voices:[]).map(v=>v.id).filter(Boolean);
+}
+function updateDirectorState(){
+  const btn=$('directorBtn');if(!btn)return;
+  const info=directorInfo(),opts=directorOptions();
+  const anyOpt=opts.style||opts.tags||opts.voices;
+  const hasChunks=!!(typeof chunks!=='undefined'&&chunks.length);
+  btn.disabled=!!directorCtl||!info||!hasChunks||!anyOpt;
+  const hint=$('directorHint');
+  let msg='';
+  if(P()==='kie')msg='المخرج الصوتي غير مدعوم مع kie.';
+  else if(!info)msg='أضف مفتاح المزود الحالي في الإعدادات لاستخدام المخرج الصوتي.';
+  else if(!hasChunks)msg='قسّم النص أولاً لاستخدام المخرج الصوتي.';
+  else if(!anyOpt)msg='اختر خياراً واحداً على الأقل للمخرج الصوتي.';
+  if(hint){hint.hidden=!msg;hint.textContent=msg}
+  btn.title=msg||'تحسين الأداء والوسوم وتوزيع الأصوات بمساعدة الذكاء الاصطناعي';
+}
+function clearDirectorUndo(){
+  directorUndo=null;
+  const b=$('directorUndo');if(b)b.hidden=true;
+}
+function undoDirector(){
+  if(!directorUndo||directorUndo.length!==chunks.length)return;
+  chunks.forEach((c,i)=>{
+    const s=directorUndo[i];
+    c.text=s.text;c.style=s.style;c.voice=s.voice;
+  });
+  clearDirectorUndo();
+  render();markDirty();
+  toast('تم التراجع عن المخرج');
+}
+function setDirectorBusy(busy,label){
+  const btn=$('directorBtn'),cancel=$('directorCancel'),pr=$('directorProgress'),desc=$('directorDesc');
+  if(cancel)cancel.hidden=!busy;
+  if(pr)pr.textContent=busy?(label||''):'';
+  if(btn)btn.disabled=busy;
+  if(desc)desc.disabled=busy;
+  ['dirStyle','dirTags','dirVoices'].forEach(id=>{const el=$(id);if(el)el.disabled=busy});
+}
+function aiDirectorSystem(tagMode,opts){
+  const tags=aiTagList(tagMode);
+  const tagLine=opts.tags
+    ?(tagMode==='fish'
+      ?`يمكنك إضافة وسوم بين قوسين مربعين فقط من هذه القائمة: ${tags.map(t=>'['+t+']').join(' ')}. ضعها في موضعها الطبيعي، ولا تضف أي كلمة أخرى.`
+      :`يمكنك إضافة وسوم بين زاويتين فقط من هذه القائمة: ${tags.map(t=>'<'+t+'>').join(' ')}. ضعها في موضعها الطبيعي، ولا تضف أي كلمة أخرى.`)
+    :'لا تضف أي وسوم ولا تغيّر النص إطلاقاً.';
+  return `أنت مخرج صوتي محترف. ستتلقى مقاطع نصية مرقّمة ووصفاً عاماً للعمل.
+أعد JSON فقط بالشكل: {"items":[{"i":1,"style":"...","text":"...","speaker":"...","voice":"..."}]}
+القواعد:
+- لا تعيد كتابة النص ولا تلخّصه ولا تصحّحه. النص مقدّس.
+- ${tagLine}
+${opts.style?'- style: وصف موجز للأداء (نبرة، سرعة، انفعال، وقفات) بما يناسب الوصف العام، ويحافظ على الاتساق مع أسلوب المقطع السابق.':'- لا تكتب style؛ اتركه فارغاً.'}
+${opts.voices?'- وزّع الأصوات: اختر voice من الأصوات المتاحة فقط، واكتب speaker (اسم أو رقم المتحدث). حافظ على نفس الصوت لنفس المتحدث عبر كل المقاطع.':'- لا توزّع أصواتاً ولا تكتب speaker/voice.'}
+- إذا لم يُفعّل خيار، اترك حقلَه فارغاً أو احذفه.
+- لا تخرج أي نص خارج JSON.`;
+}
+function aiDirectorUser(items,opts,prevStyle,speakerMap,voiceList,desc){
+  return JSON.stringify({
+    work:desc||'',
+    options:opts,
+    previousStyle:opts.style?(prevStyle||''):'',
+    speakerVoices:opts.voices?speakerMap:{},
+    availableVoices:opts.voices?voiceList:[],
+    items:items.map(it=>({i:it.i,text:it.text,style:it.style||''}))
+  });
+}
+async function aiRunDirector(){
+  if(directorCtl)return;
+  const info=directorInfo();
+  if(!info){updateDirectorState();return toast(P()==='kie'?'المخرج الصوتي غير مدعوم مع kie':'أضف مفتاح المزود الحالي لاستخدام المخرج الصوتي')}
+  if(!chunks.length)return toast('قسّم النص أولاً');
+  const opts=directorOptions();
+  if(!opts.style&&!opts.tags&&!opts.voices)return toast('اختر خياراً واحداً على الأقل للمخرج الصوتي');
+  try{
+    if(localStorage.getItem('directornotice')!=='1'){
+      const ok=confirm('سيُرسل نص المقاطع إلى مزود الذكاء الاصطناعي المختار ('+(info.p==='g'?'Google':'OpenRouter')+') لإخراج الأداء. لن يعيد النموذج كتابة النص. متابعة؟');
+      if(!ok)return;
+      localStorage.setItem('directornotice','1');
+    }
+  }catch(e){}
+  const tagMode=directorTagMode();
+  const voiceList=opts.voices?directorVoiceList():[];
+  const desc=(($('directorDesc')&&$('directorDesc').value)||'').trim();
+  const model=($('smartModel').value||'').trim()||aiModelFor(info.p);
+  const BATCH=10,total=Math.ceil(chunks.length/BATCH);
+  const results=new Map(),speakerMap={};
+  let prevStyle='';
+  directorCtl=new AbortController();
+  const ctl=directorCtl;
+  setDirectorBusy(true,'جارٍ التحضير...');
+  try{
+    for(let start=0,b=1;start<chunks.length;start+=BATCH,b++){
+      if(ctl.signal.aborted)throw abortError();
+      const items=chunks.slice(start,start+BATCH).map((c,k)=>({i:start+k+1,text:c.text,style:c.style||''}));
+      const sys=aiDirectorSystem(tagMode,opts);
+      const user=aiDirectorUser(items,opts,prevStyle,speakerMap,voiceList,desc);
+      const raw=await aiChat(info,model,sys,user,ctl);
+      if(ctl.signal.aborted)throw abortError();
+      const arr=aiParseDirectorItems(raw);
+      if(!arr)throw new Error('bad JSON');
+      for(let k=0;k<arr.length;k++){
+        const it=arr[k];
+        if(!it||typeof it!=='object')continue;
+        const i=Number.isFinite(Number(it.i))?Math.round(Number(it.i)):start+k+1;
+        if(i<start+1||i>start+items.length)continue;
+        const c=chunks[i-1],r={};
+        if(opts.style){
+          const st=aiCleanStyle(it.style);
+          if(st)r.style=st;
+        }
+        if(opts.tags&&typeof it.text==='string'&&aiTextMatches(c.text,it.text,tagMode)){
+          const txt=aiNormalize(it.text);
+          if(txt)r.text=txt;
+        }
+        if(opts.voices){
+          const speaker=typeof it.speaker==='string'?it.speaker.trim().slice(0,60):'';
+          let v=typeof it.voice==='string'?it.voice.trim():'';
+          if(speaker&&speakerMap[speaker])v=speakerMap[speaker];
+          else if(v&&voiceList.includes(v)){if(speaker)speakerMap[speaker]=v}
+          else v='';
+          if(v)r.voice=v;
+        }
+        if(Object.keys(r).length)results.set(i-1,r);
+      }
+      const lastIdx=Math.min(chunks.length,start+BATCH)-1,lastRes=results.get(lastIdx);
+      if(opts.style)prevStyle=(lastRes&&lastRes.style)||chunks[lastIdx].style||prevStyle;
+      const pr=$('directorProgress');if(pr)pr.textContent=`دفعة ${b} من ${total}`;
+    }
+    let changed=false;
+    const snapshot=chunks.map(c=>({text:c.text,style:c.style||'',voice:c.voice||''}));
+    for(const [idx,r] of results){
+      const c=chunks[idx];if(!c)continue;
+      if(r.style!=null&&r.style!==(c.style||'')){c.style=r.style;changed=true}
+      if(r.text!=null&&r.text!==c.text){
+        c.text=r.text;changed=true;
+        if(c.blob){
+          if(c.url){try{URL.revokeObjectURL(c.url)}catch(e){}c.url=null}
+          c.blob=null;c.usedAccount='';c.usedModel='';
+        }
+      }
+      if(r.voice!=null&&r.voice!==(c.voice||'')){c.voice=r.voice;changed=true}
+    }
+    if(!changed){toast('لم يقترح المخرج تغييرات');return}
+    directorUndo=snapshot;
+    const ub=$('directorUndo');if(ub)ub.hidden=false;
+    render();markDirty();
+    toast('تم تطبيق المخرج الصوتي ✓');
+  }catch(e){
+    if(ctl.signal.aborted)toast('أُلغي المخرج الصوتي');
+    else toast('تعذّر إكمال المخرج الصوتي — لم تُطبَّق تغييرات');
+  }finally{
+    directorCtl=null;
+    setDirectorBusy(false);
+    updateDirectorState();
+  }
+}
+
 if(typeof document!=='undefined'&&document.getElementById){
   $('smartsplitbtn').onclick=smartSplitAI;
   $('smartSplitCancel').onclick=()=>{if(aiCtl)aiCtl.abort()};
@@ -299,12 +511,18 @@ if(typeof document!=='undefined'&&document.getElementById){
     const v=($('smartModel').value||'').trim();
     try{localStorage.setItem(AI_MODEL_KEYS[aiFieldProvider()],v)}catch(e){}
   };
+  if($('directorBtn'))$('directorBtn').onclick=aiRunDirector;
+  if($('directorCancel'))$('directorCancel').onclick=()=>{if(directorCtl)directorCtl.abort()};
+  if($('directorUndo'))$('directorUndo').onclick=undoDirector;
+  ['dirStyle','dirTags','dirVoices'].forEach(id=>{const el=$(id);if(el)el.onchange=updateDirectorState});
   syncSmartModelField(true);
   updateSmartSplitState();
+  updateDirectorState();
 }
 if(typeof module!=='undefined'&&module.exports){
   module.exports={
     aiNormalize,aiSplitSentences,aiSplitLong,aiUnitsFromText,aiExtractJson,aiParseBreaks,
-    aiSanitizeBreaks,aiSegmentsFromUnits,aiWindows,aiBuildPrompt,aiContentText
+    aiSanitizeBreaks,aiSegmentsFromUnits,aiWindows,aiBuildPrompt,aiContentText,
+    aiTagList,aiTagRegex,aiStripTags,aiTextMatches,aiParseDirectorItems,aiCleanStyle
   };
 }

@@ -178,6 +178,7 @@ function keyState(){
     if(typeof saveGoogleAccounts==='function')saveGoogleAccounts();
   }catch(e){}
   if(typeof updateSmartSplitState==='function')updateSmartSplitState();
+  if(typeof updateDirectorState==='function')updateDirectorState();
 }
 function setProvider(p,openBox){
   if(document.body.dataset.p!==p)cancelAll(false);
