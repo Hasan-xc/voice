@@ -116,6 +116,7 @@ button:disabled{opacity:.55;cursor:not-allowed}
 .director-opts label{display:inline-flex;align-items:center;gap:5px;cursor:pointer;color:var(--ink)}
 .director-opts input{width:auto;height:auto}
 .style-inp{flex:1;min-width:150px;font-size:12.5px;padding:5px 9px;border-radius:8px}
+.speaker-inp{width:160px;font-size:12.5px;padding:5px 9px;border-radius:8px}
 
 /* text field like the reference file */
 .ta-wrap{position:relative;display:flex;flex-direction:column}

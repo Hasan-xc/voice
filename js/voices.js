@@ -406,15 +406,19 @@ function setOrModel(){
   chunks.forEach((c,i)=>{const sel=document.querySelector(`select[data-v="${i}"]`);if(sel)sel.value=c.voice||''});
 }
 function renderVoiceSelects(){
-  const cat=isOrGemini()?getGoogleVoiceCatalog():[];
-  const opts=(isOrGemini()?cat.map(v=>[v.name,v.id]):voices.map(v=>[v.name,v.id]))
-    .map(([name,id])=>`<option value="${esc(id)}">${esc(name)}</option>`).join('');
+  const orGoogle=isOrGemini();
+  const globalList=orGoogle?getGoogleVoiceCatalog().map(v=>[v.name,v.id]):voices.map(v=>[v.name,v.id]);
+  const globalOpts=globalList.map(([name,id])=>`<option value="${esc(id)}">${esc(name)}</option>`).join('');
   const cur=$('voiceSelect').value;
-  $('voiceSelect').innerHTML=opts;
+  $('voiceSelect').innerHTML=globalOpts;
   if([...$('voiceSelect').options].some(o=>o.value===cur))$('voiceSelect').value=cur;
+  // Per-chunk lists follow the active TTS provider: Google direct and Gemini use
+  // the Google catalog; Fish uses the Fish voice list.
+  const chunkList=(P()==='google'||orGoogle)?getGoogleVoiceCatalog().map(v=>[v.name,v.id]):voices.map(v=>[v.name,v.id]);
+  const chunkOpts=chunkList.map(([name,id])=>`<option value="${esc(id)}">${esc(name)}</option>`).join('');
   document.querySelectorAll('select[data-v]').forEach(sel=>{
     const kept=sel.value;
-    sel.innerHTML=`<option value="">افتراضي (من الأعلى)</option>`+opts;
+    sel.innerHTML=`<option value="">افتراضي (من الأعلى)</option>`+chunkOpts;
     if([...sel.options].some(o=>o.value===kept))sel.value=kept;
   });
 }

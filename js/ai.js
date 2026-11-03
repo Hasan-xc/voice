@@ -156,6 +156,21 @@ function aiParseDirectorItems(raw){
 function aiCleanStyle(s){
   return typeof s==='string'?s.replace(/\s+/g,' ').trim().slice(0,400):'';
 }
+function aiCleanSpeaker(s){
+  return typeof s==='string'?s.replace(/\s+/g,' ').trim().slice(0,60):'';
+}
+// A speaker split is valid only if the parts concatenate back to the original
+// text (after removing allowed tags and normalizing whitespace).
+function aiPartsValid(original,parts,mode){
+  if(!Array.isArray(parts)||parts.length<2)return false;
+  const texts=[];
+  for(const p of parts){
+    const t=aiNormalize(p&&p.text);
+    if(!t||!aiStripTags(t,mode))return false;
+    texts.push(t);
+  }
+  return aiTextMatches(original,texts.join(' '),mode);
+}
 
 // ---- providers / models (browser only) ------------------------------------
 function aiContentText(c){
@@ -345,10 +360,16 @@ function directorTagMode(){
   if(P()==='or')return (typeof isOrGemini==='function'&&isOrGemini())?'gemini':'fish';
   return '';
 }
-function directorVoiceList(){
-  if(P()==='google'||(typeof isOrGemini==='function'&&isOrGemini()))return googleVoiceNames();
-  return (typeof voices!=='undefined'?voices:[]).map(v=>v.id).filter(Boolean);
+function directorVoiceCatalog(){
+  if(P()==='google'||(typeof isOrGemini==='function'&&isOrGemini())){
+    return getGoogleVoiceCatalog().map(v=>{
+      const m=(typeof voiceMeta==='function')?voiceMeta(v):{};
+      return {id:v.id,name:v.name||v.id,gender:m.gender||'',age:m.age||'',accent:m.accent||'',desc:v.desc||''};
+    });
+  }
+  return (typeof voices!=='undefined'?voices:[]).map(v=>({id:v.id,name:v.name||v.id,gender:v.gender||'',age:v.age||'',desc:v.desc||''})).filter(v=>v.id);
 }
+function directorVoiceList(){return directorVoiceCatalog().map(v=>v.id)}
 function updateDirectorState(){
   const btn=$('directorBtn');if(!btn)return;
   const info=directorInfo(),opts=directorOptions();
@@ -365,16 +386,24 @@ function updateDirectorState(){
   btn.title=msg||'تحسين الأداء والوسوم وتوزيع الأصوات بمساعدة الذكاء الاصطناعي';
 }
 function clearDirectorUndo(){
+  if(directorUndo){
+    // Release only URLs that are no longer used by the live chunks.
+    const live=new Set((typeof chunks!=='undefined'?chunks:[]).map(c=>c.url).filter(Boolean));
+    directorUndo.forEach(s=>{
+      if(s&&s.url&&!live.has(s.url)){try{URL.revokeObjectURL(s.url)}catch(e){}}
+    });
+  }
   directorUndo=null;
   const b=$('directorUndo');if(b)b.hidden=true;
 }
 function undoDirector(){
-  if(!directorUndo||directorUndo.length!==chunks.length)return;
-  chunks.forEach((c,i)=>{
-    const s=directorUndo[i];
-    c.text=s.text;c.style=s.style;c.voice=s.voice;
-  });
-  clearDirectorUndo();
+  if(!directorUndo)return;
+  const snap=directorUndo;
+  const keep=new Set(snap.map(s=>s.url).filter(Boolean));
+  chunks.forEach(c=>{if(c.url&&!keep.has(c.url)){try{URL.revokeObjectURL(c.url)}catch(e){}}});
+  chunks=snap.map(s=>({...s}));
+  directorUndo=null;
+  const b=$('directorUndo');if(b)b.hidden=true;
   render();markDirty();
   toast('تم التراجع عن المخرج');
 }
@@ -393,24 +422,32 @@ function aiDirectorSystem(tagMode,opts){
       ?`يمكنك إضافة وسوم بين قوسين مربعين فقط من هذه القائمة: ${tags.map(t=>'['+t+']').join(' ')}. ضعها في موضعها الطبيعي، ولا تضف أي كلمة أخرى.`
       :`يمكنك إضافة وسوم بين زاويتين فقط من هذه القائمة: ${tags.map(t=>'<'+t+'>').join(' ')}. ضعها في موضعها الطبيعي، ولا تضف أي كلمة أخرى.`)
     :'لا تضف أي وسوم ولا تغيّر النص إطلاقاً.';
+  const splitLine=opts.voices
+    ?`- إذا كان المقطع يحتوي أكثر من متحدث (سرد + حوار، أو حوار بين شخصين)، قسّمه إلى parts عند حدود المتحدثين فقط. كل part: {"text":"...","speaker":"...","voice":"..."}. مجموع نصوص parts (بعد إزالة الوسوم المسموحة وتوحيد المسافات) يجب أن يطابق نص المقطع الأصلي حرفياً. لا تقسّم داخل جملة واحدة أو داخل اقتباس.`
+    :'- لا تقسّم المقطع ولا ترسل parts.';
+  const voiceLine=opts.voices
+    ?`- وزّع الأصوات: اختر voice من قائمة availableVoices فقط، واكتب speaker تسمية عربية قصيرة للمتحدث (مثل: الراوي، الأم، الطفل). حافظ على نفس speaker ونفس voice لنفس الشخصية عبر كل المقاطع والدفعات. اختر الصوت المناسب لجنس/عمر الشخصية: الراوي الشاب صوت رجالي عادي، الأم صوت أنثوي ناضج، الطفل صوت طفولي/رجالي. لا تخترع معرّف صوت غير موجود.`
+    :'- لا توزّع أصواتاً ولا تكتب speaker/voice ولا parts.';
   return `أنت مخرج صوتي محترف. ستتلقى مقاطع نصية مرقّمة ووصفاً عاماً للعمل.
-أعد JSON فقط بالشكل: {"items":[{"i":1,"style":"...","text":"...","speaker":"...","voice":"..."}]}
+أعد JSON فقط بالشكل: {"items":[{"i":1,"style":"...","text":"...","speaker":"...","voice":"...","parts":[...]}]}
 القواعد:
 - لا تعيد كتابة النص ولا تلخّصه ولا تصحّحه. النص مقدّس.
 - ${tagLine}
 ${opts.style?'- style: وصف موجز للأداء (نبرة، سرعة، انفعال، وقفات) بما يناسب الوصف العام، ويحافظ على الاتساق مع أسلوب المقطع السابق.':'- لا تكتب style؛ اتركه فارغاً.'}
-${opts.voices?'- وزّع الأصوات: اختر voice من الأصوات المتاحة فقط، واكتب speaker (اسم أو رقم المتحدث). حافظ على نفس الصوت لنفس المتحدث عبر كل المقاطع.':'- لا توزّع أصواتاً ولا تكتب speaker/voice.'}
+${splitLine}
+${voiceLine}
 - إذا لم يُفعّل خيار، اترك حقلَه فارغاً أو احذفه.
 - لا تخرج أي نص خارج JSON.`;
 }
-function aiDirectorUser(items,opts,prevStyle,speakerMap,voiceList,desc){
+function aiDirectorUser(items,opts,prevStyle,speakerMap,knownSpeakers,voiceCatalog,desc){
   return JSON.stringify({
     work:desc||'',
     options:opts,
     previousStyle:opts.style?(prevStyle||''):'',
     speakerVoices:opts.voices?speakerMap:{},
-    availableVoices:opts.voices?voiceList:[],
-    items:items.map(it=>({i:it.i,text:it.text,style:it.style||''}))
+    knownSpeakers:opts.voices?[...knownSpeakers]:[],
+    availableVoices:opts.voices?voiceCatalog:[],
+    items:items.map(it=>({i:it.i,text:it.text,style:it.style||'',speaker:it.speaker||''}))
   });
 }
 async function aiRunDirector(){
@@ -422,27 +459,30 @@ async function aiRunDirector(){
   if(!opts.style&&!opts.tags&&!opts.voices)return toast('اختر خياراً واحداً على الأقل للمخرج الصوتي');
   try{
     if(localStorage.getItem('directornotice')!=='1'){
-      const ok=confirm('سيُرسل نص المقاطع إلى مزود الذكاء الاصطناعي المختار ('+(info.p==='g'?'Google':'OpenRouter')+') لإخراج الأداء. لن يعيد النموذج كتابة النص. متابعة؟');
+      const ok=confirm('سيُرسل نص المقاطع إلى مزود الذكاء الاصطناعي المختار ('+(info.p==='g'?'Google':'OpenRouter')+') لإخراج الأداء. قد يقسّم المخرج المقطع حسب المتحدثين دون تغيير النص. متابعة؟');
       if(!ok)return;
       localStorage.setItem('directornotice','1');
     }
   }catch(e){}
   const tagMode=directorTagMode();
-  const voiceList=opts.voices?directorVoiceList():[];
+  const voiceCatalog=opts.voices?directorVoiceCatalog():[];
+  const voiceList=voiceCatalog.map(v=>v.id);
   const desc=(($('directorDesc')&&$('directorDesc').value)||'').trim();
   const model=($('smartModel').value||'').trim()||aiModelFor(info.p);
   const BATCH=10,total=Math.ceil(chunks.length/BATCH);
-  const results=new Map(),speakerMap={};
+  const results=new Map(),speakerMap={},knownSpeakers=new Set();
   let prevStyle='';
+  // A new run replaces any previous undo and releases its unused audio URLs.
+  clearDirectorUndo();
   directorCtl=new AbortController();
   const ctl=directorCtl;
   setDirectorBusy(true,'جارٍ التحضير...');
   try{
     for(let start=0,b=1;start<chunks.length;start+=BATCH,b++){
       if(ctl.signal.aborted)throw abortError();
-      const items=chunks.slice(start,start+BATCH).map((c,k)=>({i:start+k+1,text:c.text,style:c.style||''}));
+      const items=chunks.slice(start,start+BATCH).map((c,k)=>({i:start+k+1,text:c.text,style:c.style||'',speaker:c.speaker||''}));
       const sys=aiDirectorSystem(tagMode,opts);
-      const user=aiDirectorUser(items,opts,prevStyle,speakerMap,voiceList,desc);
+      const user=aiDirectorUser(items,opts,prevStyle,speakerMap,knownSpeakers,voiceCatalog,desc);
       const raw=await aiChat(info,model,sys,user,ctl);
       if(ctl.signal.aborted)throw abortError();
       const arr=aiParseDirectorItems(raw);
@@ -452,7 +492,7 @@ async function aiRunDirector(){
         if(!it||typeof it!=='object')continue;
         const i=Number.isFinite(Number(it.i))?Math.round(Number(it.i)):start+k+1;
         if(i<start+1||i>start+items.length)continue;
-        const c=chunks[i-1],r={};
+        const c=chunks[i-1],r={baseText:c.text};
         if(opts.style){
           const st=aiCleanStyle(it.style);
           if(st)r.style=st;
@@ -462,34 +502,80 @@ async function aiRunDirector(){
           if(txt)r.text=txt;
         }
         if(opts.voices){
-          const speaker=typeof it.speaker==='string'?it.speaker.trim().slice(0,60):'';
+          const sp=aiCleanSpeaker(it.speaker);
+          if(sp){r.speaker=sp;knownSpeakers.add(sp)}
           let v=typeof it.voice==='string'?it.voice.trim():'';
-          if(speaker&&speakerMap[speaker])v=speakerMap[speaker];
-          else if(v&&voiceList.includes(v)){if(speaker)speakerMap[speaker]=v}
+          if(sp&&speakerMap[sp])v=speakerMap[sp];
+          else if(v&&voiceList.includes(v)){if(sp)speakerMap[sp]=v}
           else v='';
           if(v)r.voice=v;
+          if(Array.isArray(it.parts)&&it.parts.length>1){
+            const parts=[];
+            for(const p of it.parts){
+              if(!p||typeof p.text!=='string'){parts.length=0;break}
+              let txt=aiNormalize(p.text);
+              if(!opts.tags)txt=aiStripTags(txt,tagMode);
+              if(!txt){parts.length=0;break}
+              const psp=aiCleanSpeaker(p.speaker);
+              if(psp)knownSpeakers.add(psp);
+              let pv=typeof p.voice==='string'?p.voice.trim():'';
+              if(psp&&speakerMap[psp])pv=speakerMap[psp];
+              else if(pv&&voiceList.includes(pv)){if(psp)speakerMap[psp]=pv}
+              else pv='';
+              if(!pv&&psp&&psp===sp&&v)pv=v;
+              parts.push({text:txt,speaker:psp,voice:pv,style:aiCleanStyle(p.style)});
+            }
+            if(parts.length>1&&new Set(parts.map(p=>p.speaker).filter(Boolean)).size>1&&aiPartsValid(c.text,parts,tagMode))r.parts=parts;
+          }
         }
-        if(Object.keys(r).length)results.set(i-1,r);
+        if(Object.keys(r).length>1)results.set(i-1,r);
       }
       const lastIdx=Math.min(chunks.length,start+BATCH)-1,lastRes=results.get(lastIdx);
-      if(opts.style)prevStyle=(lastRes&&lastRes.style)||chunks[lastIdx].style||prevStyle;
+      if(opts.style){
+        let ls=(lastRes&&lastRes.style)||'';
+        if(lastRes&&lastRes.parts&&lastRes.parts.length)ls=lastRes.parts[lastRes.parts.length-1].style||ls;
+        prevStyle=ls||chunks[lastIdx].style||prevStyle;
+      }
       const pr=$('directorProgress');if(pr)pr.textContent=`دفعة ${b} من ${total}`;
     }
+    // Snapshot full chunks so undo can restore the exact chunk count, speaker
+    // labels, and any audio that was detached by a text change or a split.
+    const snapshot=chunks.map(c=>({...c}));
     let changed=false;
-    const snapshot=chunks.map(c=>({text:c.text,style:c.style||'',voice:c.voice||''}));
-    for(const [idx,r] of results){
-      const c=chunks[idx];if(!c)continue;
+    const out=[];
+    for(let idx=0;idx<chunks.length;idx++){
+      const c=chunks[idx],r=results.get(idx);
+      if(!r){out.push(c);continue}
+      if(r.baseText!=null&&c.text!==r.baseText){out.push(c);continue}
+      if(r.parts&&r.parts.length>1){
+        // Split by speaker. The old audio belongs to the whole chunk; it stays
+        // in the undo snapshot and is released if the undo is discarded.
+        if(c.blob||c.url){c.blob=null;c.url=null;c.usedAccount='';c.usedModel=''}
+        const base=cleanName(c.name)||defName(idx);
+        r.parts.forEach((p,k)=>{
+          out.push({
+            text:p.text,
+            voice:p.voice||'',
+            speaker:p.speaker||'',
+            style:p.style||r.style||c.style||'',
+            name:k===0?base:`${base}-${k+1}`,
+            ext:c.ext||'mp3'
+          });
+          changed=true;
+        });
+        continue;
+      }
       if(r.style!=null&&r.style!==(c.style||'')){c.style=r.style;changed=true}
+      if(r.speaker!=null&&r.speaker!==(c.speaker||'')){c.speaker=r.speaker;changed=true}
       if(r.text!=null&&r.text!==c.text){
         c.text=r.text;changed=true;
-        if(c.blob){
-          if(c.url){try{URL.revokeObjectURL(c.url)}catch(e){}c.url=null}
-          c.blob=null;c.usedAccount='';c.usedModel='';
-        }
+        if(c.blob||c.url){c.blob=null;c.url=null;c.usedAccount='';c.usedModel=''}
       }
       if(r.voice!=null&&r.voice!==(c.voice||'')){c.voice=r.voice;changed=true}
+      out.push(c);
     }
     if(!changed){toast('لم يقترح المخرج تغييرات');return}
+    chunks=out;
     directorUndo=snapshot;
     const ub=$('directorUndo');if(ub)ub.hidden=false;
     render();markDirty();
@@ -523,6 +609,7 @@ if(typeof module!=='undefined'&&module.exports){
   module.exports={
     aiNormalize,aiSplitSentences,aiSplitLong,aiUnitsFromText,aiExtractJson,aiParseBreaks,
     aiSanitizeBreaks,aiSegmentsFromUnits,aiWindows,aiBuildPrompt,aiContentText,
-    aiTagList,aiTagRegex,aiStripTags,aiTextMatches,aiParseDirectorItems,aiCleanStyle
+    aiTagList,aiTagRegex,aiStripTags,aiTextMatches,aiParseDirectorItems,aiCleanStyle,
+    aiCleanSpeaker,aiPartsValid
   };
 }

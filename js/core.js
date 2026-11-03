@@ -187,6 +187,7 @@ function setProvider(p,openBox){
   try{localStorage.setItem('prov',p)}catch(e){}
   if(openBox)$('keybox').style.display='block';
   keyState();showStats();prog();
+  if(typeof renderVoiceSelects==='function')renderVoiceSelects();
   $('tokHint').textContent=TOK_HINT[p]||TOK_HINT.or;chunks.forEach((_,i)=>cs(i));
 }
 $('pOR').onclick=()=>setProvider('or',true);

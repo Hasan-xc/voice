@@ -77,7 +77,7 @@ async function saveWork(kind){
       id,name,createdAt:prev?prev.createdAt:now,updatedAt:now,
       text:$('text').value,mode:$('mode').value,max:$('max').value,
       mergedName:$('mergeName').value,globalVoice:$('voiceSelect').value,
-      chunks:chunks.map(c=>({text:c.text,voice:c.voice||'',name:c.name||'',style:c.style||'',ext:c.ext||'mp3',blob:c.blob||null,usedAccount:c.usedAccount||'',usedModel:c.usedModel||''}))
+      chunks:chunks.map(c=>({text:c.text,voice:c.voice||'',name:c.name||'',style:c.style||'',speaker:c.speaker||'',ext:c.ext||'mp3',blob:c.blob||null,usedAccount:c.usedAccount||'',usedModel:c.usedModel||''}))
     };
     askPersist();
     await dbPut(work);
@@ -100,7 +100,7 @@ async function restoreWork(id){
   $('mergeName').value=w.mergedName||'merged';
   if([...$('voiceSelect').options].some(o=>o.value===w.globalVoice))$('voiceSelect').value=w.globalVoice;
   chunks=(w.chunks||[]).map(c=>{
-    const o={text:c.text||'',voice:c.voice||'',name:c.name||'',style:c.style||'',ext:c.ext||'mp3',blob:c.blob||null,
+    const o={text:c.text||'',voice:c.voice||'',name:c.name||'',style:c.style||'',speaker:c.speaker||'',ext:c.ext||'mp3',blob:c.blob||null,
       usedAccount:c.usedAccount||'',usedModel:c.usedModel||''};
     if(o.blob)o.url=URL.createObjectURL(o.blob);
     return o;

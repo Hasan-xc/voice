@@ -101,4 +101,26 @@ assert.deepStrictEqual(ai.aiParseDirectorItems('{"items":[{"i":1,"style":"هاد
 assert.strictEqual(ai.aiParseDirectorItems('nope'), null);
 assert.strictEqual(ai.aiCleanStyle('  هادئ   ودافئ '), 'هادئ ودافئ');
 
+// 12) Speaker labels + speaker-split validation
+assert.strictEqual(ai.aiCleanSpeaker('  الراوي   الأول '), 'الراوي الأول');
+assert.strictEqual(ai.aiCleanSpeaker(null), '');
+{
+  const orig = 'قال الطفل: ماما، أريد الحلوى. فأجابت الأم: بعد الغداء.';
+  assert.ok(ai.aiPartsValid(orig, [
+    { text: 'قال الطفل: ماما، أريد الحلوى.' },
+    { text: 'فأجابت الأم: بعد الغداء.' }
+  ], 'gemini'));
+  assert.ok(!ai.aiPartsValid(orig, [
+    { text: 'قال الطفل: ماما.' },
+    { text: 'فأجابت الأم: بعد الغداء.' }
+  ], 'gemini'), 'a split must not drop text');
+  assert.ok(ai.aiPartsValid('مرحبا <laugh> بالعالم', [
+    { text: 'مرحبا <laugh>' }, { text: 'بالعالم' }
+  ], 'gemini'), 'allowed tags are ignored when comparing');
+  assert.ok(!ai.aiPartsValid('مرحبا بالعالم', [
+    { text: 'مرحبا' }, { text: '<laugh>' }
+  ], 'gemini'), 'a tag-only part is invalid');
+  assert.ok(!ai.aiPartsValid(orig, [{ text: orig }], 'gemini'), 'a split needs at least two parts');
+}
+
 console.log('ai.test.js: all tests passed');

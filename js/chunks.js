@@ -21,7 +21,7 @@ $('splitbtn').onclick=()=>{
   cancelAll(false);
   releaseUrls();
   if(typeof clearDirectorUndo==='function')clearDirectorUndo();
-  chunks=smartSplit(t,meas[$('mode').value],Math.max(20,+$('max').value||1500)).map((text,i)=>({text,voice:'',name:defName(i),style:''}));
+  chunks=smartSplit(t,meas[$('mode').value],Math.max(20,+$('max').value||1500)).map((text,i)=>({text,voice:'',name:defName(i),style:'',speaker:''}));
   render();markDirty();$('ctrl').scrollIntoView({behavior:'smooth'});
 };
 
@@ -50,6 +50,7 @@ function render(){
       <button class="ghost mini" data-c="${i}" style="display:none">✕ إلغاء</button></span></div>
       <textarea data-t="${i}">${esc(c.text)}</textarea>
       <div class="row" style="margin-top:4px"><span class="lbl" style="margin:0">اسم الملف</span><input class="fname" data-n="${i}" dir="ltr" value="${esc(c.name||defName(i))}" aria-label="اسم ملف المقطع ${i+1}"></div>
+      <div class="row" style="margin-top:4px"><span class="lbl" style="margin:0">اسم المتحدث</span><input class="speaker-inp" data-sp="${i}" dir="auto" value="${esc(c.speaker||'')}" placeholder="مثلاً: الراوي، الأم، الطفل" aria-label="اسم متحدث المقطع ${i+1}"></div>
       <div class="row" style="margin-top:4px"><span class="lbl" style="margin:0">أسلوب الإلقاء</span><input class="style-inp" data-s="${i}" dir="auto" value="${esc(c.style||'')}" placeholder="اختياري — مثلاً: هادئ ودافئ" aria-label="أسلوب إلقاء المقطع ${i+1}"></div>
       <div class="tag" id="s${i}"></div><div class="tag" id="m${i}"></div><div class="tag" id="u${i}"></div><div id="a${i}"></div>`;
     $('chunks').appendChild(d);cs(i);
@@ -75,6 +76,10 @@ function prog(){
   $('costest').textContent=P()!=='or'?'':`تقدير التكلفة لو مدفوع: $${(totalBytes/1e6*15).toFixed(3)}`;
 }
 $('chunks').addEventListener('input',e=>{
+  if(e.target.dataset.sp!==undefined){
+    const c=chunks[+e.target.dataset.sp];if(!c)return;
+    c.speaker=e.target.value;markDirty();return;
+  }
   if(e.target.dataset.s!==undefined){
     const c=chunks[+e.target.dataset.s];if(!c)return;
     c.style=e.target.value;markDirty();return;

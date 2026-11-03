@@ -105,11 +105,12 @@ function googleQuotaKind(text){
 async function googleBlob(c,ctl,slot){
   const text={type:'text',text:c.text},style=String(c.style||'').trim()||$('gstyle').value.trim();
   if(style)text.annotations=[{type:'speech_metadata',style}];
+  const voice=(c.voice&&googleVoiceNames().includes(c.voice))?c.voice:getGoogleVoice();
   const body={
     model:slot.model,
     input:[{type:'user_input',content:[text]}],
     response_format:{type:'audio'},
-    generation_config:{speech_config:[{voice:getGoogleVoice()}]}
+    generation_config:{speech_config:[{voice}]}
   };
   googleSendAt=Date.now();
   const r=await fetchT('https://generativelanguage.googleapis.com/v1beta/interactions',{method:'POST',signal:ctl.signal,headers:{'x-goog-api-key':slot.account.key,'Content-Type':'application/json'},body:JSON.stringify(body)},GOOGLE_TIMEOUT);
