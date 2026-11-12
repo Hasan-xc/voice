@@ -6,9 +6,10 @@ try{
 loadGoogleState();
 setOrModel();
 
-// the page always starts empty (no autosave); only the provider choice is remembered
+// the page restores the last autosaved draft from IndexedDB (or starts empty)
 (()=>{
   syncFileBox();
   let p='or';try{p=localStorage.getItem('prov')||'or'}catch(e){}
   setProvider(['kie','google'].includes(p)?p:'or',false);
+  if(typeof restoreDraft==='function')restoreDraft().catch(()=>{});
 })();
