@@ -442,3 +442,42 @@ function renderVoiceSelects(){
     if([...sel.options].some(o=>o.value===kept))sel.value=kept;
   });
 }
+
+// ---- short voice preview (uses the current provider + selected voice) ----
+let previewCtl=null,previewUrl=null,previewAudio=null;
+async function previewVoice(){
+  const btn=$('previewVoiceBtn');if(!btn)return;
+  if(previewCtl){try{previewCtl.abort()}catch(e){}previewCtl=null;return}
+  if(P()==='google'&&!googleAnyKey()){$('keybox').style.display='block';return alert('أضف مفتاح حساب Google أو فعّل حساباً أولاً')}
+  if(P()!=='google'&&!curKey()){$('keybox').style.display='block';return alert('أدخل مفتاح المزود أولاً')}
+  const c={text:'مرحباً، هذا اختبار قصير للصوت المحدد.',voice:'',style:'',ext:'mp3'};
+  if(P()==='or')c.voice=isOrGemini()?$('orGvoice').value:$('voiceSelect').value;
+  else if(P()==='google')c.voice=$('gvoice').value;
+  const ctl=new AbortController();previewCtl=ctl;
+  btn.disabled=true;btn.textContent='…';
+  let slot=null;
+  try{
+    let blob;
+    if(P()==='kie')blob=await kieBlob(c,ctl);
+    else if(P()==='google'){
+      slot=acquireGoogleSlot();
+      if(!slot)throw {status:0,body:'لا توجد حصة Google متاحة الآن'};
+      try{blob=await googleBlob(c,ctl,slot)}finally{releaseSlot(slot);slot=null}
+    }else blob=await orBlob(c,ctl);
+    if(ctl.signal.aborted)return;
+    if(previewUrl)URL.revokeObjectURL(previewUrl);
+    previewUrl=URL.createObjectURL(blob);
+    if(previewAudio){try{previewAudio.pause()}catch(e){}}
+    previewAudio=new Audio(previewUrl);
+    previewAudio.onended=()=>{if(previewUrl){URL.revokeObjectURL(previewUrl);previewUrl=null}};
+    await previewAudio.play();
+  }catch(e){
+    if(e&&e.name==='AbortError')return;
+    alert('تعذّر تشغيل المعاينة: '+errMsg(e&&e.status,(e&&(e.body||e.message))||''));
+  }finally{
+    if(slot)releaseSlot(slot);
+    if(previewCtl===ctl)previewCtl=null;
+    btn.disabled=false;btn.textContent='▶';
+  }
+}
+if($('previewVoiceBtn'))$('previewVoiceBtn').onclick=previewVoice;

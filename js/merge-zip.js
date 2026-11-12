@@ -66,20 +66,54 @@ $('mergeAddFile').onchange=e=>{
   e.target.value='';renderMergeList();
   if(bad.length)alert('تم تجاهل ملفات غير مدعومة أو كبيرة جداً:\n'+bad.join('\n'));
 };
+// ---- merge audio (decode when needed, never concatenate MP3 bytes) -------
+async function decodeAudioToChannels(blob, ctx){
+  const buf=await ctx.decodeAudioData(await blob.arrayBuffer());
+  const channels=[];
+  for(let c=0;c<buf.numberOfChannels;c++)channels.push(buf.getChannelData(c));
+  return {rate:buf.sampleRate,channels};
+}
+async function mergeAnyAudio(blobs){
+  if(!blobs.length)throw new Error('لا توجد ملفات للدمج');
+  const total=blobs.reduce((a,b)=>a+(b.size||0),0);
+  if(total>250*1024*1024)throw new Error('الحجم الكلي أكبر من 250MB. ادمج على دفعات أصغر.');
+  // Fast path: WAV files are merged directly, with resampling when needed.
+  const kinds=[];
+  for(const b of blobs){
+    let head;
+    try{head=await blobBytes(b.slice(0,12))}catch(e){head=new Uint8Array(0)}
+    kinds.push(sniffAudioExt(head));
+  }
+  if(kinds.every(k=>k==='wav'))return mergeWavs(blobs);
+  const AC=window.AudioContext||window.webkitAudioContext;
+  if(!AC)throw new Error('متصفحك لا يدعم فك ترميز الصوت لدمج الصيغ المختلفة');
+  const ctx=new AC();
+  try{
+    const parts=[];
+    for(const b of blobs)parts.push(await decodeAudioToChannels(b,ctx));
+    const rate=Math.max(...parts.map(p=>p.rate));
+    const ch=Math.min(2,Math.max(...parts.map(p=>p.channels.length)));
+    const chunks=[];
+    for(const p of parts){
+      const channels=mapChannels(p.channels,ch).map(c=>resampleChannel(c,p.rate,rate));
+      chunks.push(floatToInt16(channels));
+    }
+    const len=chunks.reduce((a,c)=>a+c.length,0);
+    return new Blob([wavHeader(len,rate,ch,16),...chunks],{type:'audio/wav'});
+  }finally{
+    try{ctx.close()}catch(e){}
+  }
+}
 $('mergeDoBtn').onclick=async()=>{
   if(!mergeItems.length)return alert('لا توجد أصوات للدمج');
-  const exts=[...new Set(mergeItems.map(it=>it.ext))];
-  if(exts.length>1)return alert('الملفات بصيغ مختلطة ('+exts.join(', ')+'). استخدم ملفات من نفس الصيغة.');
-  const e=exts[0];
-  if(e!=='wav'&&e!=='mp3')return alert('الدمج مدعوم فقط لملفات WAV وMP3.');
   let blob;
-  try{blob=e==='wav'?await mergeWavs(mergeItems.map(it=>it.blob)):new Blob(mergeItems.map(it=>it.blob),{type:mergeItems[0].blob.type||'audio/mpeg'})}
+  try{blob=await mergeAnyAudio(mergeItems.map(it=>it.blob))}
   catch(err){return alert('تعذّر الدمج: '+err.message)}
   const url=URL.createObjectURL(blob);
   if(mergeUrl)URL.revokeObjectURL(mergeUrl);mergeUrl=url;
   const base=cleanName($('mergeName').value)||cleanName(currentWorkName)||'merged';
-  const note=e==='mp3'?'<p class="tag warn">دمج MP3 خام: قد تظهر مدة الملف غير دقيقة في بعض المشغّلات.</p>':'';
-  const html=`<p class="tag">دُمج ${mergeItems.length} صوتاً بالترتيب</p>${note}<audio controls src="${url}"></audio><a href="${url}" data-ext="${e}" download="${esc(base)}.${e}">تحميل الملف المدمج</a>`;
+  const note='<p class="tag">دُمج الصوت بعد فك ترميزه إلى WAV (المدة والترتيب دقيقان).</p>';
+  const html=`<p class="tag">دُمج ${mergeItems.length} صوتاً بالترتيب</p>${note}<audio controls src="${url}"></audio><a href="${url}" data-ext="wav" download="${esc(base)}.wav">تحميل الملف المدمج</a>`;
   $('mergeResult').innerHTML=html;
   $('mergeout').innerHTML=html;
 };
@@ -88,28 +122,74 @@ $('mergeDoBtn').onclick=async()=>{
 const crcT=(()=>{const t=[];for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
 const crc32=u=>{let c=~0;for(let i=0;i<u.length;i++)c=crcT[(c^u[i])&255]^(c>>>8);return ~c>>>0};
 const pack=(...f)=>{const b=new DataView(new ArrayBuffer(f.reduce((a,x)=>a+x[1],0)));let o=0;f.forEach(([v,s])=>{s==2?b.setUint16(o,v,true):b.setUint32(o,v,true);o+=s});return new Uint8Array(b.buffer)};
-function zip(files){
+async function blobBytes(blob){
+  if(blob.arrayBuffer)return new Uint8Array(await blob.arrayBuffer());
+  return new Promise((ok,no)=>{
+    const r=new FileReader();
+    r.onload=()=>ok(new Uint8Array(r.result));
+    r.onerror=()=>no(r.error||new Error('read failed'));
+    r.readAsArrayBuffer(blob);
+  });
+}
+// CRC over a Blob without copying it all into RAM. Files are then referenced
+// directly as Blob parts, so a 200MB export does not need a 200MB Uint8Array.
+async function crc32Blob(blob){
+  let c=~0;
+  if(blob.stream){
+    const r=blob.stream().getReader();
+    while(true){
+      const {done,value}=await r.read();
+      if(done)break;
+      for(let i=0;i<value.length;i++)c=crcT[(c^value[i])&255]^(c>>>8);
+    }
+  }else{
+    const u=await blobBytes(blob);
+    for(let i=0;i<u.length;i++)c=crcT[(c^u[i])&255]^(c>>>8);
+  }
+  return {crc:(~c)>>>0,size:blob.size};
+}
+async function zipParts(files){
   const parts=[],cen=[];let off=0;
   for(const f of files){
-    const n=enc.encode(f.name),c=crc32(f.data),s=f.data.length;
-    const lh=pack([0x04034b50,4],[20,2],[0x800,2],[0,2],[0,2],[33,2],[c,4],[s,4],[s,4],[n.length,2],[0,2]);
-    parts.push(lh,n,f.data);
-    cen.push(pack([0x02014b50,4],[20,2],[20,2],[0x800,2],[0,2],[0,2],[33,2],[c,4],[s,4],[s,4],[n.length,2],[0,2],[0,2],[0,2],[0,2],[0,4],[off,4]),n);
-    off+=lh.length+n.length+s;
+    const n=enc.encode(f.name),{crc,size}=await crc32Blob(f.blob);
+    const lh=pack([0x04034b50,4],[20,2],[0x800,2],[0,2],[0,2],[33,2],[crc,4],[size,4],[size,4],[n.length,2],[0,2]);
+    parts.push(lh,n,f.blob);
+    cen.push(pack([0x02014b50,4],[20,2],[20,2],[0x800,2],[0,2],[0,2],[33,2],[crc,4],[size,4],[size,4],[n.length,2],[0,2],[0,2],[0,2],[0,2],[0,4],[off,4]),n);
+    off+=lh.length+n.length+size;
   }
   const cs=cen.reduce((a,x)=>a+x.length,0);
-  return new Blob([...parts,...cen,pack([0x06054b50,4],[0,2],[0,2],[files.length,2],[files.length,2],[cs,4],[off,4],[0,2])],{type:'application/zip'});
+  parts.push(...cen,pack([0x06054b50,4],[0,2],[0,2],[files.length,2],[files.length,2],[cs,4],[off,4],[0,2]));
+  return parts;
+}
+async function saveZipParts(parts,filename){
+  // File System Access API writes parts to disk without building one big Blob.
+  if(window.showSaveFilePicker){
+    try{
+      const h=await window.showSaveFilePicker({suggestedName:filename,types:[{description:'ZIP',accept:{'application/zip':['.zip']}}]});
+      const w=await h.createWritable();
+      for(const p of parts)await w.write(p);
+      await w.close();
+      return;
+    }catch(e){
+      if(e&&e.name==='AbortError')return;
+      // Fall through to a normal download when the picker is unavailable.
+    }
+  }
+  const u=URL.createObjectURL(new Blob(parts,{type:'application/zip'}));
+  const a=document.createElement('a');a.href=u;a.download=filename;a.click();
+  setTimeout(()=>URL.revokeObjectURL(u),60000);
 }
 $('zipbtn').onclick=async()=>{
   const files=[],used=new Set();
-  for(let i=0;i<chunks.length;i++)if(chunks[i].blob)files.push({name:uniqueName(fname(i,chunks[i]),used),data:new Uint8Array(await chunks[i].blob.arrayBuffer())});
+  for(let i=0;i<chunks.length;i++)if(chunks[i].blob)files.push({name:uniqueName(fname(i,chunks[i]),used),blob:chunks[i].blob});
   if(!files.length)return alert('لا توجد أصوات مولّدة للتصدير');
-  const u=URL.createObjectURL(zip(files));
   const merged=cleanName($('mergeName').value);
   const base=((merged&&merged!=='merged')?merged:(cleanName(currentWorkName)||merged||'audio-parts')).replace(/\.zip$/i,'');
   const zipName=(base||'audio-parts')+'.zip';
-  const a=document.createElement('a');a.href=u;a.download=zipName;a.click();
-  setTimeout(()=>URL.revokeObjectURL(u),60000);
+  try{
+    const parts=await zipParts(files);
+    await saveZipParts(parts,zipName);
+  }catch(e){alert('تعذّر إنشاء ZIP: '+(e.message||e))}
 };
 
 // ---- warn before leaving while generating or with unsaved changes ----

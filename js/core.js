@@ -103,7 +103,7 @@ function cancelAll(showCancelled){
     if(wasWorking){
       const m=$('m'+i);
       if(c.blob){
-        if(m){m.className='tag ok';m.textContent='تم ✓'}
+        refreshChunkCard(i);
         if(card)card.classList.add('done');
       }else{
         if(m){m.className='tag';m.textContent='أُلغي'}
@@ -158,6 +158,7 @@ function costForText(text){
 }
 function costForChunks(list){
   const arr=list||chunks;
+  if(!arr.length)return {known:true,free:false,usd:0,label:'لا مقاطع'};
   let usd=0,known=true,free=true;
   for(const c of arr){
     const r=costForText(c.text||'');

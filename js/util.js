@@ -192,10 +192,19 @@
     return out;
   }
   // Merge WAVs with different rates/channels/bit depths instead of rejecting.
+  async function blobBytes(blob) {
+    if (blob.arrayBuffer) return new Uint8Array(await blob.arrayBuffer());
+    return new Promise((ok, no) => {
+      const r = new FileReader();
+      r.onload = () => ok(new Uint8Array(r.result));
+      r.onerror = () => no(r.error || new Error('read failed'));
+      r.readAsArrayBuffer(blob);
+    });
+  }
   async function mergeWavs(blobs) {
     if (!blobs.length) throw new Error('لا توجد ملفات للدمج');
     const parts = [];
-    for (const b of blobs) parts.push(pcmToChannels(parseWav(new Uint8Array(await b.arrayBuffer()))));
+    for (const b of blobs) parts.push(pcmToChannels(parseWav(await blobBytes(b))));
     const rate = Math.max(...parts.map(p => p.rate));
     const ch = Math.min(2, Math.max(...parts.map(p => p.channels.length)));
     const chunks = [];
@@ -283,7 +292,7 @@
   return {
     splitAfterPunct, splitSentences, SENT_PUNCT, CLAUSE_PUNCT,
     decodeCp1256, decodeTextBuffer, arabicCount,
-    sniffAudioExt, wavHeader, wavFromPcm, parseWav, mergeWavs,
+    sniffAudioExt, wavHeader, wavFromPcm, parseWav, mergeWavs, blobBytes,
     pcmToChannels, resampleChannel, floatToInt16,
     estimateTtsCost, tokensEstimate, utf8Bytes, TTS_PRICING,
     GOOGLE_TTS_VOICES, pcmInfo, pcmToWav,
