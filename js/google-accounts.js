@@ -416,8 +416,8 @@ $('gInfoDelete').onclick=()=>{
   const id=$('gInfoDelete').dataset.voice;
   deleteCustomGoogleVoice(id);closeVoiceInfo();
 };
-$('gvoice').addEventListener('change',()=>{updateGoogleVoiceTrigger();keyState()});
-$('orGvoice').addEventListener('change',()=>{keyState();markDirty()});
+$('gvoice').addEventListener('change',()=>{updateGoogleVoiceTrigger();keyState();markDefaultVoiceChunksStale()});
+$('orGvoice').addEventListener('change',()=>{keyState();markDirty();markDefaultVoiceChunksStale()});
 $('vCancel').onclick=()=>$('voiceOverlay').classList.remove('show');
 $('voiceOverlay').onclick=e=>{if(e.target.id==='voiceOverlay')$('voiceOverlay').classList.remove('show')};
 

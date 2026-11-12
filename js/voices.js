@@ -1,14 +1,32 @@
 // ---- voices & Google accounts/quota --------------------------------------
 const DEFAULT_VOICES=[{name:'ناشينال',id:'4b06a9b39328408f95420f1ff675cd6d'}];
-const GOOGLE_TTS_VOICES=[['Zephyr','مشرق'],['Puck','شاب مرح'],['Charon','راوٍ معلوماتي'],['Kore','حازم'],['Fenrir','متحمس'],['Leda','شبابي'],['Orus','حازم'],['Aoede','خفيف'],['Callirrhoe','هادئ'],['Autonoe','مشرق'],['Enceladus','ناعم النَفَس'],['Iapetus','واضح'],['Umbriel','هادئ'],['Algieba','سلس'],['Despina','سلس'],['Erinome','واضح'],['Algenib','أجش'],['Rasalgethi','معلوماتي'],['Laomedeia','متحمس'],['Achernar','ناعم'],['Alnilam','حازم'],['Schedar','متّزن'],['Gacrux','ناضج'],['Pulcherrima','جريء'],['Achird','ودود'],['Zubenelgenubi','عفوي'],['Vindemiatrix','لطيف'],['Sadachbia','حيوي'],['Sadaltager','خبير'],['Sulafat','دافئ']];
-const GOOGLE_STATIC_CATALOG=GOOGLE_TTS_VOICES.map(([id,desc])=>({id,name:id,desc,lang:'',gender:'',type:'prebuilt'}));
+// GOOGLE_TTS_VOICES lives in js/util.js ([id, Arabic character, gender]).
+const GOOGLE_STATIC_CATALOG=GOOGLE_TTS_VOICES.map(([id,desc,gender])=>({id,name:id,desc,lang:'',gender:gender||'',type:'prebuilt'}));
+const G_VOICES_VERSION=2;
 let gVoiceCache={ts:0,voices:[]};
 
+function saveGoogleVoiceCache(){
+  try{
+    const voices=(gVoiceCache.voices&&gVoiceCache.voices.length?gVoiceCache.voices:GOOGLE_STATIC_CATALOG)
+      .map(v=>{const {_meta,_hay,...rest}=normalizeGoogleVoice(v)||{};return rest});
+    localStorage.setItem(G_VOICES_KEY,JSON.stringify({version:G_VOICES_VERSION,ts:Date.now(),voices}));
+  }catch(e){}
+}
 function loadGoogleVoiceCache(){
+  let valid=false;
   try{
     const c=JSON.parse(localStorage.getItem(G_VOICES_KEY)||'null');
-    if(c&&Array.isArray(c.voices))gVoiceCache={ts:Number(c.ts)||0,voices:c.voices.map(normalizeGoogleVoice).filter(Boolean)};
+    if(c&&c.version===G_VOICES_VERSION&&Array.isArray(c.voices)&&c.voices.length){
+      gVoiceCache={ts:Number(c.ts)||0,voices:c.voices.map(normalizeGoogleVoice).filter(Boolean)};
+      valid=gVoiceCache.voices.length>0;
+    }
   }catch(e){}
+  if(!valid){
+    // The cache used to be read but never written. Persist the verified static
+    // catalog (with gender) so the picker has real metadata immediately.
+    gVoiceCache={ts:Date.now(),voices:GOOGLE_STATIC_CATALOG.map(v=>({...v}))};
+    saveGoogleVoiceCache();
+  }
   gCatalogCache=null;
 }
 const G_CUSTOM_KEY='gcustomvoices';
@@ -393,6 +411,8 @@ function setOrModel(){
       renderVoiceSelects();
       toast(`أُزيل الصوت غير المتوافق من ${cleared} مقطعاً`);
     }
+    const stale=markAllChunksStale();
+    if(stale)toast(`${stale} مقطعاً بحاجة إلى إعادة توليد بعد تغيير الموديل`);
   }
   lastOrFamily=fam;
   const g=fam==='gemini';

@@ -77,7 +77,7 @@ async function saveWork(kind){
       id,name,createdAt:prev?prev.createdAt:now,updatedAt:now,
       text:$('text').value,mode:$('mode').value,max:$('max').value,
       mergedName:$('mergeName').value,globalVoice:$('voiceSelect').value,
-      chunks:chunks.map(c=>({text:c.text,voice:c.voice||'',name:c.name||'',style:c.style||'',speaker:c.speaker||'',ext:c.ext||'mp3',blob:c.blob||null,usedAccount:c.usedAccount||'',usedModel:c.usedModel||''}))
+      chunks:chunks.map(c=>({text:c.text,voice:c.voice||'',name:c.name||'',style:c.style||'',speaker:c.speaker||'',ext:c.ext||'mp3',blob:c.blob||null,usedAccount:c.usedAccount||'',usedModel:c.usedModel||'',stale:!!c.stale}))
     };
     askPersist();
     await dbPut(work);
@@ -101,7 +101,7 @@ async function restoreWork(id){
   if([...$('voiceSelect').options].some(o=>o.value===w.globalVoice))$('voiceSelect').value=w.globalVoice;
   chunks=(w.chunks||[]).map(c=>{
     const o={text:c.text||'',voice:c.voice||'',name:c.name||'',style:c.style||'',speaker:c.speaker||'',ext:c.ext||'mp3',blob:c.blob||null,
-      usedAccount:c.usedAccount||'',usedModel:c.usedModel||''};
+      usedAccount:c.usedAccount||'',usedModel:c.usedModel||'',stale:!!c.stale};
     if(o.blob)o.url=URL.createObjectURL(o.blob);
     return o;
   });
@@ -143,7 +143,7 @@ $('libList').addEventListener('click',async e=>{
     renderLibrary();
   }
 });
-$('voiceSelect').addEventListener('change',markDirty);
+$('voiceSelect').addEventListener('change',()=>{markDirty();markDefaultVoiceChunksStale()});
 $('mergeName').addEventListener('input',()=>{
   markDirty();
   const a=document.querySelector('#mergeout a[data-ext]');
