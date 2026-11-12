@@ -14,7 +14,11 @@ function syncFileBox(){$('textActions').classList.toggle('show',$('text').value.
 $('clearsave').onclick=()=>{
   if(dirty&&!confirm('سيتم مسح كل شيء، بما فيه التغييرات غير المحفوظة. متابعة؟'))return;
   cancelAll(false);
+  // The director undo snapshot holds blob: URLs that are revoked below; clear
+  // it first so the undo button cannot restore dead players.
+  if(typeof clearDirectorUndo==='function')clearDirectorUndo();
   releaseUrls();
+  if(typeof clearDraft==='function')clearDraft();
   $('text').value='';
   $('file').value='';
   $('filename').textContent='';$('filename').style.display='none';
@@ -30,10 +34,14 @@ $('clearsave').onclick=()=>{
 function showStats(){
   const t=$('text').value,b=bytes(t);
   const rows=[['الأحرف',t.length],['بدون مسافات',t.replace(/\s/g,'').length],['الكلمات',words(t)],['بايت UTF-8 (دقيق)',b],['توكنز (تقريبي)',tokens(t)]];
-  if(P()==='or')rows.push(['تكلفة Fish المدفوع $',(b/1e6*15).toFixed(3)]);
+  const cost=costForText(t);
+  rows.push(['التكلفة التقديرية',cost.label]);
+  rows.push(['مدة الصوت ≈',Math.max(1,Math.round(t.length/15))+' ث']);
   $('stats').innerHTML=rows.map(([l,v])=>`<div class="stat"><b>${typeof v=='number'?fmt(v):v}</b><span>${l}</span></div>`).join('');
 }
-$('text').oninput=()=>{showStats();markDirty();syncFileBox()};
+let statsTimer=null;
+function scheduleStats(){clearTimeout(statsTimer);statsTimer=setTimeout(showStats,180)}
+$('text').oninput=()=>{scheduleStats();markDirty();syncFileBox()};
 
 // ---- file upload & drag-and-drop ----
 async function handleFile(f){
@@ -43,10 +51,14 @@ async function handleFile(f){
   try{
     let t='';
     if(/\.docx$/i.test(f.name)){
-      if(!window.mammoth)await new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js';s.onload=ok;s.onerror=()=>no(new Error('تعذر تحميل قارئ docx (يحتاج إنترنت)'));document.head.appendChild(s)});
+      // Hosted locally (vendor/) so there is no CDN supply-chain risk and DOCX
+      // upload works offline.
+      if(!window.mammoth)await new Promise((ok,no)=>{const s=document.createElement('script');s.src='vendor/mammoth.browser.min.js?v=20261112a';s.onload=ok;s.onerror=()=>no(new Error('تعذّر تحميل قارئ docx'));document.head.appendChild(s)});
       t=(await mammoth.extractRawText({arrayBuffer:await f.arrayBuffer()})).value;
     }else{
-      t=await f.text();
+      // Read bytes, not f.text(): SRT/TXT files from old Windows tools are
+      // usually Windows-1256, and f.text() always assumes UTF-8.
+      t=decodeTextBuffer(await f.arrayBuffer());
       if(/\.html?$/i.test(f.name))t=new DOMParser().parseFromString(t,'text/html').body.textContent;
       if(/\.srt$/i.test(f.name))t=t.replace(/^\d+\s*$/gm,'').replace(/\d{2}:\d{2}:\d{2}[,.]\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}[,.]\d{3}/g,'').replace(/\n{2,}/g,'\n').trim();
     }

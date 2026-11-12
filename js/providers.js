@@ -7,6 +7,9 @@ function errMsg(status,body){
   if(status===402)return `الرصيد غير كافٍ (أو سالب) في حساب ${who}`;
   if(status===429)return 'تجاوزت حد الطلبات المسموح';
   if(status===422)return 'kie رفض المعاملات (422): '+(body||'').slice(0,250);
+  if(!status&&/failed to fetch|networkerror|load failed|network request failed|fetch failed/i.test(body))
+    return 'تعذّر الاتصال بالخادم. تحقّق من الإنترنت أو من حجب الشبكة/CORS ثم أعد المحاولة.';
+  if(status===500||status===502||status===503||status===504)return `الخادم غير متاح الآن (${status}). أعد المحاولة بعد قليل.`;
   return (status?status+' ':'')+(body||'').slice(0,250);
 }
 
@@ -29,12 +32,14 @@ async function orBlob(c,ctl){
   }
   const r=await fetchT('https://openrouter.ai/api/v1/audio/speech',{method:'POST',signal:ctl.signal,headers:{Authorization:'Bearer '+curKey(),'Content-Type':'application/json'},body:JSON.stringify(body)},GOOGLE_TIMEOUT);
   if(!r.ok)throw {status:r.status,body:await r.text()};
-  if(geminiTts){ // raw PCM (16-bit, usually 24kHz mono) -> wrap into a WAV file
+  if(geminiTts){
+    // Gemini TTS returns raw PCM. Read the real rate/channels/bit depth from
+    // the content-type instead of assuming 24kHz/16-bit/mono.
     const bytes=new Uint8Array(await r.arrayBuffer());
     const mt=(r.headers&&r.headers.get&&r.headers.get('content-type'))||'';
-    const m=mt.match(/rate=(\d+)/),rate=m?+m[1]:24000;
     c.ext='wav';
-    return new Blob([wavFromPcm(bytes,rate)],{type:'audio/wav'});
+    if(sniffAudioExt(bytes)==='wav')return new Blob([bytes],{type:'audio/wav'});
+    return new Blob([pcmToWav(bytes,mt).bytes],{type:'audio/wav'});
   }
   c.ext='mp3';
   return r.blob();
@@ -112,7 +117,13 @@ async function googleBlob(c,ctl,slot){
     response_format:{type:'audio'},
     generation_config:{speech_config:[{voice}]}
   };
-  googleSendAt=Date.now();
+  // Per-account spacing: a global timestamp used to serialize every account.
+  const gap=Math.max(0,parseInt($('gdelay').value,10)||0)*1000;
+  if(gap){
+    const last=gSendAt[slot.account.id]||0,wait=last+gap-Date.now();
+    if(wait>0)await sleepAbort(wait,ctl);
+  }
+  gSendAt[slot.account.id]=Date.now();
   const r=await fetchT('https://generativelanguage.googleapis.com/v1beta/interactions',{method:'POST',signal:ctl.signal,headers:{'x-goog-api-key':slot.account.key,'Content-Type':'application/json'},body:JSON.stringify(body)},GOOGLE_TIMEOUT);
   const raw=await r.text();let j={};try{j=JSON.parse(raw)}catch(e){}
   if(!r.ok){
@@ -131,54 +142,18 @@ async function googleBlob(c,ctl,slot){
   const auds=steps.flatMap(s=>Array.isArray(s&&s.content)?s.content:[]).filter(x=>x&&x.type==='audio'&&x.data);
   if(!auds.length)throw {status:0,body:'لم يرجع Google أي صوت: '+raw.slice(0,200)};
   const a=auds[auds.length-1],mt=a.mime_type||a.mimeType||'audio/wav';
-  c.ext=/l16|pcm/i.test(mt)?'pcm':'wav';
   let bytes=b64ToBytes(a.data);
-  if(c.ext==='pcm'){
-    const m=String(mt).match(/rate=(\d+)/);
-    bytes=wavFromPcm(bytes,m?+m[1]:24000);
-    c.ext='wav';
+  // The API normally returns audio/L16 PCM, but stereo/24-bit has been seen.
+  // Parse rate/channels/bits from the mime type and wrap correctly.
+  if(/l16|pcm|s16|s24/i.test(mt)&&sniffAudioExt(bytes)!=='wav'){
+    bytes=pcmToWav(bytes,mt).bytes;
   }
+  c.ext='wav';
   c.usedAccount=slot.account.name;
   c.usedModel=gLabel(slot.model);
   return new Blob([bytes],{type:'audio/wav'});
 }
 
-// ---- WAV helpers (merge WAVs properly: strip headers, join PCM, write one header) ----
-function sniffAudioExt(u){
-  if(!u||u.length<4)return '';
-  if(u[0]===0x52&&u[1]===0x49&&u[2]===0x46&&u[3]===0x46)return 'wav';
-  if(u[0]===0x49&&u[1]===0x44&&u[2]===0x33)return 'mp3';
-  if(u[0]===0xFF&&(u[1]&0xE0)===0xE0)return 'mp3';
-  if(u[0]===0x4F&&u[1]===0x67&&u[2]===0x67&&u[3]===0x53)return 'ogg';
-  if(u[0]===0x66&&u[1]===0x4C&&u[2]===0x61&&u[3]===0x43)return 'flac';
-  return '';
-}
-function wavHeader(dataLen,rate,ch,bits){
-  const b=new DataView(new ArrayBuffer(44)),w=(o,s)=>[...s].forEach((x,i)=>b.setUint8(o+i,x.charCodeAt(0)));
-  w(0,'RIFF');b.setUint32(4,36+dataLen,true);w(8,'WAVEfmt ');b.setUint32(16,16,true);b.setUint16(20,1,true);b.setUint16(22,ch,true);
-  b.setUint32(24,rate,true);b.setUint32(28,rate*ch*bits/8,true);b.setUint16(32,ch*bits/8,true);b.setUint16(34,bits,true);w(36,'data');b.setUint32(40,dataLen,true);
-  return new Uint8Array(b.buffer);
-}
-function wavFromPcm(pcm,rate=24000){const h=wavHeader(pcm.length,rate,1,16),o=new Uint8Array(44+pcm.length);o.set(h);o.set(pcm,44);return o}
-function parseWav(u){
-  const dv=new DataView(u.buffer,u.byteOffset,u.byteLength);let rate=24000,ch=1,bits=16,o=12;
-  while(o+8<=u.length){
-    const id=String.fromCharCode(u[o],u[o+1],u[o+2],u[o+3]);let sz=dv.getUint32(o+4,true);
-    if(id==='fmt '){ch=dv.getUint16(o+10,true);rate=dv.getUint32(o+12,true);bits=dv.getUint16(o+22,true)}
-    if(id==='data'){if(o+8+sz>u.length)sz=u.length-o-8;return {rate,ch,bits,pcm:u.subarray(o+8,o+8+sz)}}
-    o+=8+sz+(sz&1);
-  }
-  return {rate,ch,bits,pcm:u.subarray(44)};
-}
-async function mergeWavs(blobs){
-  if(!blobs.length)throw new Error('لا توجد ملفات للدمج');
-  const parts=[];for(const b of blobs)parts.push(parseWav(new Uint8Array(await b.arrayBuffer())));
-  const f=parts[0];
-  const bad=parts.find(p=>p.rate!==f.rate||p.ch!==f.ch||p.bits!==f.bits);
-  if(bad){
-    throw new Error(`لا يمكن دمج ملفات WAV بإعدادات مختلفة: الأول ${f.rate}Hz/${f.ch}ch/${f.bits}bit، وملف آخر ${bad.rate}Hz/${bad.ch}ch/${bad.bits}bit. وحّد الإعدادات أولاً.`);
-  }
-  const len=parts.reduce((a,p)=>a+p.pcm.length,0),out=new Uint8Array(44+len);
-  out.set(wavHeader(len,f.rate,f.ch,f.bits));let o=44;for(const p of parts){out.set(p.pcm,o);o+=p.pcm.length}
-  return new Blob([out],{type:'audio/wav'});
-}
+// WAV/PCM helpers live in js/util.js (loaded first) so they are testable in
+// Node and shared with the merger.
+

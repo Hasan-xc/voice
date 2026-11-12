@@ -18,7 +18,9 @@ const KIE_WINDOW_MS=10000;
 const KIE_MAX_CONCURRENT=40;
 const KIE_POLL_MS=4000;
 const KIE_POLL_JITTER=500;
-const KIE_POLL_MAX=Math.ceil(8*60*1000/KIE_POLL_MS); // ~8 minutes
+// Long scripts routinely take more than 8 minutes on kie. Keep polling for
+// up to 20 minutes before giving up.
+const KIE_POLL_MAX=Math.ceil(20*60*1000/KIE_POLL_MS); // ~20 minutes
 const KIE_RETRY_DELAYS=[10000,20000,40000]; // 10s, 20s, 40s (4 attempts total)
 const KIE_MAX_ATTEMPTS=4;
 const GOOGLE_TIMEOUT=120000, KIE_CREATE_TIMEOUT=30000, KIE_POLL_TIMEOUT=20000, KIE_DOWNLOAD_TIMEOUT=120000;
@@ -29,7 +31,10 @@ const G_ACCOUNTS_KEY='gaccounts', G_LIMITS_KEY='glimits', G_ORDER_KEY='gmodelord
 const G_MODE_KEY='gmode', G_MANUAL_KEY='gmanual', G_VOICES_KEY='gvoicescache';
 
 let chunks=[],stopReq=false,ctls=new Map();
-let epoch=0, runSeq=0, gQuotaNoticeAt=0, googleSendAt=0;
+let epoch=0, runSeq=0, gQuotaNoticeAt=0;
+// Per-account "last send" timestamp. A single global timestamp serialized all
+// Google accounts; each account has its own rate limit.
+let gSendAt={};
 let quotaResetCache={at:0,day:''};
 const P=()=>document.body.dataset.p;
 function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
@@ -98,7 +103,7 @@ function cancelAll(showCancelled){
     if(wasWorking){
       const m=$('m'+i);
       if(c.blob){
-        if(m){m.className='tag ok';m.textContent='تم ✓'}
+        refreshChunkCard(i);
         if(card)card.classList.add('done');
       }else{
         if(m){m.className='tag';m.textContent='أُلغي'}
@@ -108,9 +113,62 @@ function cancelAll(showCancelled){
     }
   });
 }
-function safeEl(id){return document.getElementById(id)}
+// ---- stale-audio bookkeeping ---------------------------------------------
+// Changing voice/style/speaker/model must not silently keep audio generated
+// with the old settings. We keep the audio (it may still be useful) but flag
+// it as stale, and "generate all" regenerates stale chunks.
+function markChunkStale(c){
+  if(!c||!c.blob)return false;
+  c.stale=true;return true;
+}
+function markChunkStaleByIndex(i){return markChunkStale(chunks[i])}
+function markAllChunksStale(){
+  let n=0;
+  chunks.forEach((c,i)=>{if(markChunkStale(c)){n++;refreshChunkCard(i)}});
+  if(n){prog();markDirty()}
+  return n;
+}
+// Chunks with an empty per-box voice inherit the global picker, so changing the
+// global default only invalidates those.
+function markDefaultVoiceChunksStale(){
+  let n=0;
+  chunks.forEach((c,i)=>{if(!String(c.voice||'').trim()&&markChunkStale(c)){n++;refreshChunkCard(i)}});
+  if(n){prog();markDirty()}
+  return n;
+}
+function refreshChunkCard(i){
+  const c=chunks[i];if(!c)return;
+  const m=$('m'+i),card=$('c'+i);
+  if(!c.blob)return;
+  if(card){card.classList.add('done');card.classList.remove('err','work')}
+  if(m){
+    if(c.stale){m.className='tag warn';m.textContent='صوت قديم — أعد التوليد'}
+    else{m.className='tag ok';m.textContent='تم ✓'}
+  }
+}
+function chunkPending(c){return !c.blob||!!c.stale}
 function isAlive(i,c,myEpoch){
   return epoch===myEpoch && chunks[i]===c;
+}
+// Cost of one chunk / all chunks for the active provider+model.
+function costForText(text){
+  if(P()==='google')return {known:true,free:true,usd:0,label:'مجاني ضمن الحصة'};
+  if(P()==='kie')return {known:false,free:false,usd:0,label:'حسب حساب kie'};
+  return estimateTtsCost($('model').value,text);
+}
+function costForChunks(list){
+  const arr=list||chunks;
+  if(!arr.length)return {known:true,free:false,usd:0,label:'لا مقاطع'};
+  let usd=0,known=true,free=true;
+  for(const c of arr){
+    const r=costForText(c.text||'');
+    if(!r.known){known=false;free=false;continue}
+    if(!r.free)free=false;
+    usd+=r.usd;
+  }
+  if(!known)return {known:false,free:false,usd:0,label:'غير معروف'};
+  if(free)return {known:true,free:true,usd:0,label:P()==='google'?'مجاني ضمن الحصة':'مجاني'};
+  return {known:true,free:false,usd,label:'$'+usd.toFixed(4)};
 }
 
 // ---- theme ----
@@ -168,8 +226,12 @@ document.addEventListener('keydown',e=>{
 function keyState(){
   const ok=curKey().length>10;$('keyst').textContent=ok?'✓':'✗';$('keyst').className=ok?'on':'';
   try{
+    // Honour "do not remember" immediately: unchecking must erase the key,
+    // not leave the previously stored copy behind.
     if($('rem').checked)localStorage.setItem('orkey',$('key').value.trim());
+    else localStorage.removeItem('orkey');
     if($('krem').checked)localStorage.setItem('kiekey',$('kkey').value.trim());
+    else localStorage.removeItem('kiekey');
     localStorage.setItem('kvoice',$('kvoice').value);localStorage.setItem('kmodel',$('kmodel').value);
     localStorage.setItem('ktemp',$('ktemp').value);localStorage.setItem('kfill',$('kfill').checked?'1':'0');
     localStorage.setItem('orGvoice',$('orGvoice').value);
@@ -181,7 +243,8 @@ function keyState(){
   if(typeof updateDirectorState==='function')updateDirectorState();
 }
 function setProvider(p,openBox){
-  if(document.body.dataset.p!==p)cancelAll(false);
+  const changed=document.body.dataset.p!==p;
+  if(changed)cancelAll(false);
   document.body.dataset.p=p;
   $('pOR').classList.toggle('act',p==='or');$('pKie').classList.toggle('act',p==='kie');$('pG').classList.toggle('act',p==='google');
   try{localStorage.setItem('prov',p)}catch(e){}
@@ -189,6 +252,10 @@ function setProvider(p,openBox){
   keyState();showStats();prog();
   if(typeof renderVoiceSelects==='function')renderVoiceSelects();
   $('tokHint').textContent=TOK_HINT[p]||TOK_HINT.or;chunks.forEach((_,i)=>cs(i));
+  if(changed&&chunks.some(c=>c.blob)){
+    const n=markAllChunksStale();
+    if(n&&typeof toast==='function')toast(`غيّرت المزود: ${n} مقطعاً بحاجة إلى إعادة توليد`);
+  }
 }
 $('pOR').onclick=()=>setProvider('or',true);
 $('pKie').onclick=()=>setProvider('kie',true);
@@ -217,3 +284,29 @@ try{
   const kt=localStorage.getItem('ktemp');if(kt!==null&&kt!==''&&Number.isFinite(Number(kt)))$('ktemp').value=kt;
   const kf=localStorage.getItem('kfill');if(kf==='1')$('kfill').checked=true;
 }catch(e){}
+
+// Wipe every stored key from this browser (names/quota stay).
+function forgetAllKeys(){
+  if(!confirm('سيتم حذف كل مفاتيح API المحفوظة من هذا المتصفح. ستحتاج لإدخالها مرة أخرى. متابعة؟'))return;
+  try{
+    ['orkey','kiekey','gkey'].forEach(k=>localStorage.removeItem(k));
+  }catch(e){}
+  $('key').value='';$('kkey').value='';$('rem').checked=false;$('krem').checked=false;$('grem').checked=false;
+  if(typeof gAccounts!=='undefined'){
+    gAccounts.forEach(a=>{a.key=''});
+    if(typeof saveGoogleAccounts==='function')saveGoogleAccounts();
+    if(typeof renderGoogleAccounts==='function')renderGoogleAccounts();
+  }
+  keyState();
+  if(typeof toast==='function')toast('حُذفت المفاتيح المحفوظة من هذا المتصفح');
+}
+if($('forgetKeys'))$('forgetKeys').onclick=forgetAllKeys;
+
+// ---- optional pre-run cost cap -------------------------------------------
+if($('costCap')){
+  try{
+    const cc=localStorage.getItem('costcap');
+    if(cc!==null&&cc!=='')$('costCap').value=cc;
+  }catch(e){}
+  $('costCap').oninput=()=>{try{localStorage.setItem('costcap',$('costCap').value)}catch(e){}};
+}

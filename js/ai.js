@@ -1,4 +1,9 @@
 // ---- AI helpers (pure functions are Node-testable) -------------------------
+// In the browser js/util.js loads first and provides these globals. Under Node
+// (tests) pull them from the module so the pure helpers stay testable.
+if(typeof module!=='undefined'&&module.exports&&typeof splitAfterPunct==='undefined'){
+  Object.assign(globalThis,require('./util.js'));
+}
 // Text models (current official docs, fast + cheap):
 //   OpenRouter: google/gemini-3.5-flash-lite
 //   Google:     gemini-3.5-flash-lite (Interactions API)
@@ -22,7 +27,8 @@ function aiSplitSentences(text){
   const paras=String(text==null?'':text).replace(/\r/g,'').split(/\n+/);
   for(const para of paras){
     const p=para.trim();if(!p)continue;
-    const sents=p.split(/(?<=[.!?؟؛…。！？])\s+/).map(s=>s.trim()).filter(Boolean);
+    // splitAfterPunct has no regex lookbehind (Safari < 16.4).
+    const sents=splitAfterPunct(p,SENT_PUNCT);
     if(!sents.length)continue;
     sents.forEach((s,i)=>out.push({t:s,p:i===sents.length-1}));
   }
@@ -33,7 +39,7 @@ function aiSplitSentences(text){
 // sentence -> comma/colon -> words, never cutting a word).
 function aiSplitLong(text,measure,max){
   const m=measure||(s=>s.length),pieces=[];
-  for(const p of String(text).split(/(?<=[,،:;])\s+/)){
+  for(const p of splitAfterPunct(String(text),CLAUSE_PUNCT)){
     if(m(p)<=max){pieces.push(p);continue}
     let cur='';
     for(const w of p.split(/\s+/)){
@@ -249,16 +255,29 @@ function aiBuildPrompt(units,a,b,ctxA,measure,max,mode){
     `الوحدات المطلوبة (${a+1}–${b}):\n${list}\n\n`+
     `أعد JSON فقط: {"breaks":[...]}`;
 }
-async function aiChat(info,model,sys,user,ctl){
-  if(info.p==='g'){
-    const body={model,input:user,system_instruction:sys,generation_config:{temperature:0}};
+async function googleTextReply(j){
+  if(typeof j.output_text==='string')return j.output_text;
+  const steps=Array.isArray(j.steps)?j.steps:[];
+  return steps.flatMap(s=>Array.isArray(s&&s.content)?s.content:[]).filter(x=>x&&x.type==='text').map(x=>x.text||'').join('');
+}
+async function aiChatGoogle(info,model,sys,user,ctl){
+  // The TTS endpoint uses the structured Interactions body; older text
+  // revisions accept a plain string. Try structured first, then fall back on
+  // an input-shape 400 so the two call sites can never disagree.
+  const structured={model,input:[{type:'user_input',content:[{type:'text',text:user}]}],system_instruction:sys,generation_config:{temperature:0}};
+  const plain={model,input:user,system_instruction:sys,generation_config:{temperature:0}};
+  for(const body of [structured,plain]){
     const r=await fetchT(AI_G_URL,{method:'POST',signal:ctl.signal,headers:{'x-goog-api-key':info.key,'Content-Type':'application/json'},body:JSON.stringify(body)},AI_TIMEOUT);
     const raw=await r.text();let j={};try{j=JSON.parse(raw)}catch(e){}
-    if(!r.ok)throw {status:r.status,body:(j.error&&j.error.message)||raw.slice(0,300)};
-    if(typeof j.output_text==='string')return j.output_text;
-    const steps=Array.isArray(j.steps)?j.steps:[];
-    return steps.flatMap(s=>Array.isArray(s&&s.content)?s.content:[]).filter(x=>x&&x.type==='text').map(x=>x.text||'').join('');
+    if(r.ok)return googleTextReply(j);
+    const msg=(j.error&&j.error.message)||raw;
+    if(r.status===400&&/input|content|request/i.test(msg))continue;
+    throw {status:r.status,body:msg.slice(0,300)};
   }
+  throw {status:400,body:'تعذّر إرسال الطلب إلى Google (صيغة input غير مدعومة)'};
+}
+async function aiChat(info,model,sys,user,ctl){
+  if(info.p==='g')return aiChatGoogle(info,model,sys,user,ctl);
   const r=await fetchT(AI_OR_URL,{method:'POST',signal:ctl.signal,headers:{'Content-Type':'application/json','Authorization':'Bearer '+info.key},body:JSON.stringify({model,messages:[{role:'system',content:sys},{role:'user',content:user}],temperature:0})},AI_TIMEOUT);
   const raw=await r.text();let j={};try{j=JSON.parse(raw)}catch(e){}
   if(!r.ok)throw {status:r.status,body:(j.error&&j.error.message)||raw.slice(0,300)};
@@ -296,7 +315,7 @@ function applyAiSplit(segs){
   cancelAll(false);
   releaseUrls();
   if(typeof clearDirectorUndo==='function')clearDirectorUndo();
-  chunks=segs.map((text,i)=>({text,voice:'',name:defName(i),style:''}));
+  chunks=segs.map((text,i)=>({text,voice:'',name:defName(i),style:'',speaker:''}));
   render();markDirty();$('ctrl').scrollIntoView({behavior:'smooth'});
 }
 async function smartSplitAI(){
@@ -550,7 +569,8 @@ async function aiRunDirector(){
       if(r.parts&&r.parts.length>1){
         // Split by speaker. The old audio belongs to the whole chunk; it stays
         // in the undo snapshot and is released if the undo is discarded.
-        if(c.blob||c.url){c.blob=null;c.url=null;c.usedAccount='';c.usedModel=''}
+        if(c.url){try{URL.revokeObjectURL(c.url)}catch(e){}}
+        c.blob=null;c.url=null;c.usedAccount='';c.usedModel='';c.stale=false;
         const base=cleanName(c.name)||defName(idx);
         r.parts.forEach((p,k)=>{
           out.push({
@@ -565,13 +585,14 @@ async function aiRunDirector(){
         });
         continue;
       }
-      if(r.style!=null&&r.style!==(c.style||'')){c.style=r.style;changed=true}
-      if(r.speaker!=null&&r.speaker!==(c.speaker||'')){c.speaker=r.speaker;changed=true}
+      if(r.style!=null&&r.style!==(c.style||'')){c.style=r.style;markChunkStale(c);changed=true}
+      if(r.speaker!=null&&r.speaker!==(c.speaker||'')){c.speaker=r.speaker;markChunkStale(c);changed=true}
       if(r.text!=null&&r.text!==c.text){
         c.text=r.text;changed=true;
-        if(c.blob||c.url){c.blob=null;c.url=null;c.usedAccount='';c.usedModel=''}
+        if(c.url){try{URL.revokeObjectURL(c.url)}catch(e){}}
+        c.blob=null;c.url=null;c.usedAccount='';c.usedModel='';c.stale=false;
       }
-      if(r.voice!=null&&r.voice!==(c.voice||'')){c.voice=r.voice;changed=true}
+      if(r.voice!=null&&r.voice!==(c.voice||'')){c.voice=r.voice;markChunkStale(c);changed=true}
       out.push(c);
     }
     if(!changed){toast('لم يقترح المخرج تغييرات');return}

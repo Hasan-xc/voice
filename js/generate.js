@@ -76,14 +76,14 @@ async function gen(i,opts){
   if(m){m.className='tag';m.textContent='جارٍ التوليد...'}
   if(card){card.classList.add('work');card.classList.remove('err')}
   const ctl=new AbortController();ctls.set(i,ctl);
-  let tries=0,kieAttempt=opts.kieAttempt||0;
+  let tries=0,timeoutTries=0,kieAttempt=opts.kieAttempt||0;
   try{
     while(true){
       if(!isAlive(i,c,myEpoch)||stopReq||ctl.signal.aborted)return false;
       try{
         const blob=P()==='kie'?await kieBlob(c,ctl,m):P()==='google'?await googleBlobWithSlots(c,ctl,m):await orBlob(c,ctl);
         if(!isAlive(i,c,myEpoch)||stopReq||ctl.signal.aborted)return false;
-        c.blob=blob;
+        c.blob=blob;c.stale=false;
         if(c.url)URL.revokeObjectURL(c.url);
         c.url=URL.createObjectURL(c.blob);
         if(P()!=='google'){c.usedAccount='';c.usedModel=''}
@@ -107,15 +107,23 @@ async function gen(i,opts){
           if(m){m.className='tag';m.textContent='حد الطلبات… إعادة المحاولة خلال 20 ثانية'}
           await sleepAbort(RETRY_DELAY,ctl);continue;
         }
+        // One transparent retry for transient timeouts (network hiccups).
+        if(err&&err.timeout&&!opts.kieQueue&&timeoutTries<1&&!stopReq){
+          timeoutTries++;
+          if(m){m.className='tag';m.textContent='انتهت المهلة… محاولة أخيرة'}
+          await sleepAbort(2500,ctl);continue;
+        }
         throw err;
       }
     }
   }catch(err){
     if(!isAlive(i,c,myEpoch))return false;
     if(err&&err.noSlot){
-      if(m){m.className='tag';m.textContent='بانتظار توفر الحصة…'}
+      // Quota exhaustion must not abort the whole batch: mark this chunk as
+      // pending and let the remaining chunks try other accounts.
+      if(m){m.className='tag';m.textContent='معلّق — لا حصة Google الآن'}
       if(card)card.classList.remove('work','err');
-      showNoSlots();stopReq=true;return false;
+      showNoSlots();return false;
     }
     if(stopReq&&!ctl.signal.aborted)return false;
     if(err&&err.name==='AbortError'){
@@ -246,18 +254,35 @@ $('allbtn').onclick=async()=>{
     return;
   }
   $('allbtn').style.display='none';$('stopbtn').style.display='';
-  const pending=chunks.map((c,i)=>i).filter(i=>!chunks[i].blob);
-  const gdelaySec=P()==='google'?Math.max(0,parseInt($('gdelay').value,10)||0):0;
+  // Stale chunks (audio generated with an old voice/style/model) count as pending.
+  const pending=chunks.map((c,i)=>i).filter(i=>chunkPending(chunks[i]));
+  // Refuse to start when the user set a cap and the known estimate exceeds it.
+  const cap=Math.max(0,Number($('costCap')&&$('costCap').value)||0);
+  if(cap>0&&pending.length){
+    const est=costForChunks(pending.map(i=>chunks[i]));
+    if(est.known&&!est.free&&est.usd>cap){
+      $('stopbtn').style.display='none';$('allbtn').style.display='';
+      alert(`التقدير ${est.label} يتجاوز سقف التكلفة $${cap.toFixed(2)}. ارفع السقف أو قلّل النص.`);
+      return;
+    }
+  }
   try{
     if(P()==='kie'){
       await runKieQueue(pending,myEpoch);
     }else if(P()==='google'){
-      for(const i of pending){
-        if(stopReq||epoch!==myEpoch)break;
-        if(gdelaySec&&googleSendAt)await delayUntil(i,googleSendAt+gdelaySec*1000,myEpoch);
-        if(stopReq||epoch!==myEpoch)break;
-        await gen(i);
-      }
+      // Parallel workers, one per usable account (capped). The per-account
+      // delay is enforced inside googleBlob, so different accounts can send
+      // at the same time while each account keeps its own spacing.
+      const usable=Math.max(1,gAccounts.filter(a=>a.enabled&&a.key).length);
+      const workers=Math.max(1,Math.min(4,usable,pending.length||1));
+      let idx=0;
+      const worker=async()=>{
+        while(idx<pending.length&&!stopReq&&epoch===myEpoch){
+          const i=pending[idx++];
+          await gen(i);
+        }
+      };
+      await Promise.all(Array.from({length:workers},worker));
     }else{
       let idx=0;
       async function worker(){
@@ -272,7 +297,7 @@ $('allbtn').onclick=async()=>{
   }finally{
     if(myRun===runSeq){
       $('stopbtn').style.display='none';$('allbtn').style.display='';
-      $('allbtn').textContent=chunks.some(c=>!c.blob)?'▶ استئناف':'▶ توليد الكل';
+      $('allbtn').textContent=chunks.some(c=>chunkPending(c))?'▶ استئناف':'▶ توليد الكل';
       const bc=$('batchCount');if(bc)bc.textContent='';
     }
   }

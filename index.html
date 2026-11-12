@@ -2,9 +2,12 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="مولّد صوت عربي متعدد المزودين: OpenRouter وkie.ai وGoogle AI Studio، مع تقسيم ذكي، مخرج صوتي، دمج وتصدير.">
+<meta name="theme-color" content="#FCF9EA">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob: data:; connect-src 'self' https:; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>مولد الصوت</title>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=20261112a">
 </head>
 <body data-p="or">
 <div class="wrap">
@@ -46,7 +49,8 @@
       </div>
       <div class="vrow" id="orVoiceFree">
         <select id="voiceSelect" dir="ltr" aria-label="الصوت الافتراضي"></select>
-        <button class="round" id="addVoiceBtn" title="إضافة صوت جديد">＋</button>
+        <button type="button" class="round" id="previewVoiceBtn" title="معاينة الصوت المحدد" aria-label="معاينة الصوت المحدد">▶</button>
+        <button type="button" class="round" id="addVoiceBtn" title="إضافة صوت جديد" aria-label="إضافة صوت جديد">＋</button>
       </div>
       <div class="vrow" id="orVoiceG" style="display:none">
         <select id="orGvoice" dir="ltr" aria-label="صوت جوجل"></select>
@@ -178,6 +182,10 @@
       <div style="flex:1"><span class="lbl">أسلوب الإلقاء (style) — اختياري، مثلاً: هادئ ودافئ</span><input id="gstyle" style="width:100%" placeholder="اتركه فارغاً في الغالب"></div>
     </div>
     <small>احصل على المفتاح من <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. يبقى في متصفحك ويُرسل إلى generativelanguage.googleapis.com فقط. الحصة المجانية محدودة بعدد الطلبات. يُرسل طلب واحد لكل صندوق، وأثناء «توليد الكل» يبدأ احتساب الفاصل الزمني من لحظة إرسال الطلب مباشرة ولا ينتظر عودة الرد. الناتج WAV ويدعم العربية تلقائياً.</small>
+  </div>
+  <div class="key-security">
+    <b>⚠️ حدود الأمان:</b> إذا فعّلت «تذكّر»، تُحفظ المفاتيح كنص عادي في localStorage هذا المتصفح — أي إضافة أو ثغرة في الصفحة قد تقرأها. لا تفتح الموقع على جهاز مشترك، وأبقِ «تذكّر» مغلقاً على الأجهزة العامة. المفاتيح تُرسل فقط إلى مزوّدها ولا تمر عبر أي سيرفر وسيط.
+    <div class="row" style="margin-top:6px"><button type="button" class="ghost mini" id="forgetKeys">🗑 مسح المفاتيح المحفوظة</button></div>
   </div>
 </div>
 
@@ -319,6 +327,11 @@
     <div class="tag" id="batchCount"></div>
     <div class="tag" id="costest"></div>
   </div>
+  <div class="row cost-cap-row">
+    <label class="lbl" for="costCap" style="margin:0">سقف التكلفة قبل التشغيل ($)</label>
+    <input id="costCap" type="number" min="0" step="0.01" value="0" inputmode="decimal" aria-label="سقف التكلفة بالدولار">
+    <small>0 = بلا سقف. لن يبدأ «توليد الكل» إذا تجاوز التقدير السقف.</small>
+  </div>
   <div class="row" style="margin-top:8px"><span class="lbl" style="margin:0">اسم الملف المدمج</span><input id="mergeName" class="fname" value="merged" dir="ltr" aria-label="اسم الملف المدمج"></div>
   <div id="mergeout"></div>
 </div>
@@ -344,16 +357,17 @@
 </div>
 
 <div id="toast" role="status" aria-live="polite"></div>
-<script src="js/core.js"></script>
-<script src="js/voices.js"></script>
-<script src="js/google-accounts.js"></script>
-<script src="js/storage.js"></script>
-<script src="js/input.js"></script>
-<script src="js/chunks.js"></script>
-<script src="js/providers.js"></script>
-<script src="js/generate.js"></script>
-<script src="js/ai.js"></script>
-<script src="js/merge-zip.js"></script>
-<script src="js/init.js"></script>
+<script src="js/util.js?v=20261112a"></script>
+<script src="js/core.js?v=20261112a"></script>
+<script src="js/voices.js?v=20261112a"></script>
+<script src="js/google-accounts.js?v=20261112a"></script>
+<script src="js/storage.js?v=20261112a"></script>
+<script src="js/input.js?v=20261112a"></script>
+<script src="js/chunks.js?v=20261112a"></script>
+<script src="js/providers.js?v=20261112a"></script>
+<script src="js/generate.js?v=20261112a"></script>
+<script src="js/ai.js?v=20261112a"></script>
+<script src="js/merge-zip.js?v=20261112a"></script>
+<script src="js/init.js?v=20261112a"></script>
 </body>
 </html>

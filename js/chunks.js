@@ -1,9 +1,10 @@
 // ---- smart split ----
 function smartSplit(text,m,max){
-  const sents=text.replace(/\r/g,'').split(/(?<=[.!?؟؛…。！？])\s+|\n+/).map(s=>s.trim()).filter(Boolean),pieces=[];
+  // splitSentences/splitAfterPunct avoid regex lookbehind (Safari < 16.4).
+  const sents=splitSentences(text),pieces=[];
   for(const s of sents){
     if(m(s)<=max){pieces.push(s);continue}
-    for(const p of s.split(/(?<=[,،:;])\s+/)){
+    for(const p of splitAfterPunct(s,CLAUSE_PUNCT)){
       if(m(p)<=max){pieces.push(p);continue}
       let cur='';
       for(const w of p.split(/\s+/)){const n=cur?cur+' '+w:w;if(m(n)>max&&cur){pieces.push(cur);cur=w}else cur=n}
@@ -38,7 +39,7 @@ function uniqueName(name,used){
   let k=2;while(used.has(`${base}-${k}${e}`))k++;
   const n=`${base}-${k}${e}`;used.add(n);return n;
 }
-const audioHtml=(i,c)=>`<audio controls src="${c.url}"></audio><a href="${c.url}" download="${esc(fname(i,c))}">تحميل</a>`;
+const audioHtml=(i,c)=>`<audio controls preload="none" src="${c.url}"></audio><a href="${c.url}" download="${esc(fname(i,c))}">تحميل</a>`;
 function render(){
   if(mergeUrl){URL.revokeObjectURL(mergeUrl);mergeUrl=null}
   $('chunks').innerHTML='';
@@ -54,7 +55,7 @@ function render(){
       <div class="row" style="margin-top:4px"><span class="lbl" style="margin:0">أسلوب الإلقاء</span><input class="style-inp" data-s="${i}" dir="auto" value="${esc(c.style||'')}" placeholder="اختياري — مثلاً: هادئ ودافئ" aria-label="أسلوب إلقاء المقطع ${i+1}"></div>
       <div class="tag" id="s${i}"></div><div class="tag" id="m${i}"></div><div class="tag" id="u${i}"></div><div id="a${i}"></div>`;
     $('chunks').appendChild(d);cs(i);
-    if(c.blob){$('c'+i).classList.add('done');$('m'+i).className='tag ok';$('m'+i).textContent='تم ✓';renderUsed(i,c);
+    if(c.blob){$('c'+i).classList.add('done');refreshChunkCard(i);renderUsed(i,c);
       $('a'+i).innerHTML=audioHtml(i,c);}
   });
   renderVoiceSelects();
@@ -69,31 +70,48 @@ function cs(i){
   if(tk>TOKEN_WARN[P()])el.innerHTML+=' · <span class="warn">⚠ قريب من حد السياق، يُفضّل تقسيمه أصغر</span>';
 }
 function prog(){
-  const n=chunks.length,d=chunks.filter(c=>c.blob).length;
-  $('fill').style.width=(n?d/n*100:0)+'%';
-  $('prog').textContent=`تم توليد ${d} من ${n}`+(n&&d==n?' ✓':'');
-  const totalBytes=chunks.reduce((a,c)=>a+bytes(c.text),0);
-  $('costest').textContent=P()!=='or'?'':`تقدير التكلفة لو مدفوع: $${(totalBytes/1e6*15).toFixed(3)}`;
+  const n=chunks.length,ready=chunks.filter(c=>c.blob&&!c.stale).length;
+  const stale=chunks.filter(c=>c.blob&&c.stale).length;
+  $('fill').style.width=(n?ready/n*100:0)+'%';
+  $('prog').textContent=`تم توليد ${ready} من ${n}`+(stale?` · ${stale} قديم`:'')+(n&&ready===n?' ✓':'');
+  const cost=costForChunks(chunks);
+  $('costest').textContent=cost.known
+    ?(cost.free?`التكلفة: ${cost.label}`:`تقدير التكلفة: ${cost.label}`)
+    :'التكلفة: غير معروفة لهذا الموديل';
+  const bc=$('batchCount');if(bc)bc.textContent=stale?`${stale} مقطع يحتاج إعادة توليد`:'';
 }
 $('chunks').addEventListener('input',e=>{
   if(e.target.dataset.sp!==undefined){
-    const c=chunks[+e.target.dataset.sp];if(!c)return;
-    c.speaker=e.target.value;markDirty();return;
+    const i=+e.target.dataset.sp,c=chunks[i];if(!c)return;
+    c.speaker=e.target.value;
+    if(markChunkStale(c)){refreshChunkCard(i);prog()}
+    markDirty();return;
   }
   if(e.target.dataset.s!==undefined){
-    const c=chunks[+e.target.dataset.s];if(!c)return;
-    c.style=e.target.value;markDirty();return;
+    const i=+e.target.dataset.s,c=chunks[i];if(!c)return;
+    c.style=e.target.value;
+    if(markChunkStale(c)){refreshChunkCard(i);prog()}
+    markDirty();return;
   }
   if(e.target.dataset.t!==undefined){
-    cancelAll(false);
-    const i=+e.target.dataset.t,c=chunks[i];c.text=e.target.value;c.blob=null;c.usedAccount='';c.usedModel='';
-    if(c.url){URL.revokeObjectURL(c.url);c.url=null}
+    // Only abort the chunk being edited; a text edit used to cancel every
+    // running generation on each keystroke.
+    const i=+e.target.dataset.t,c=chunks[i];if(!c)return;
+    const ctl=ctls.get(i);if(ctl)ctl.abort();
+    c.text=e.target.value;c.stale=false;
+    if(c.url){try{URL.revokeObjectURL(c.url)}catch(_){}}
+    c.blob=null;c.url=null;c.usedAccount='';c.usedModel='';
     const u=$('u'+i);if(u)u.textContent='';
     $('a'+i).innerHTML='';$('c'+i).classList.remove('done','err');$('m'+i).textContent='';cs(i);prog();markDirty();
   }
 });
 $('chunks').addEventListener('change',e=>{
-  if(e.target.dataset.v!==undefined){chunks[+e.target.dataset.v].voice=e.target.value;markDirty()}
+  if(e.target.dataset.v!==undefined){
+    const i=+e.target.dataset.v,c=chunks[i];if(!c)return;
+    c.voice=e.target.value;
+    if(markChunkStale(c)){refreshChunkCard(i);prog()}
+    markDirty();
+  }
   if(e.target.dataset.n!==undefined){
     const i=+e.target.dataset.n,c=chunks[i];
     c.name=cleanName(e.target.value)||defName(i);e.target.value=c.name;
