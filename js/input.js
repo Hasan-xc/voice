@@ -38,6 +38,7 @@ function showStats(){
   rows.push(['التكلفة التقديرية',cost.label]);
   rows.push(['مدة الصوت ≈',Math.max(1,Math.round(t.length/15))+' ث']);
   $('stats').innerHTML=rows.map(([l,v])=>`<div class="stat"><b>${typeof v=='number'?fmt(v):v}</b><span>${l}</span></div>`).join('');
+  if(typeof updateDirectorState==='function')updateDirectorState();
 }
 let statsTimer=null;
 function scheduleStats(){clearTimeout(statsTimer);statsTimer=setTimeout(showStats,180)}

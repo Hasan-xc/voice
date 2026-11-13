@@ -179,6 +179,27 @@ button:disabled{opacity:.55;cursor:not-allowed}
 .merge-item .mi-btns{display:flex;gap:4px}
 .merge-item .mi-btns button{padding:2px 7px;font-size:12px;border-radius:8px;min-width:auto}
 .merge-empty{color:var(--mut);font-size:13px;text-align:center;padding:10px}
+/* director speaker preview */
+.director-modal{max-width:620px;max-height:90vh;display:flex;flex-direction:column;text-align:right}
+.dir-preview-note{margin:0 0 10px;font-size:12.5px;line-height:1.6;color:var(--mut)}
+.dir-preview-note b{color:var(--ink)}
+.dir-section-title{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:800;color:var(--ink);margin:8px 0 6px}
+.dir-count{font-size:11.5px;font-weight:600;color:var(--mut)}
+.dir-chars{display:flex;flex-direction:column;gap:6px;max-height:30vh;overflow-y:auto;padding:1px}
+.dir-char{display:flex;align-items:center;gap:8px;background:var(--cream);border:1px solid var(--line);border-radius:10px;padding:6px 8px}
+.dir-char-id{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.35}
+.dir-char-name{font-weight:800;font-size:13px}
+.dir-char-meta{font-size:11px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dir-char select{flex:0 0 152px;max-width:52%;padding:4px 6px;font-size:12px;border-radius:8px;direction:ltr}
+.dir-lines{display:flex;flex-direction:column;gap:5px;overflow-y:auto;max-height:38vh;padding:2px;background:var(--cream);border:1px solid var(--line);border-radius:10px}
+.dir-line{display:flex;align-items:flex-start;gap:4px;flex-wrap:wrap;padding:6px 8px;border-bottom:1px dashed var(--line);font-size:13px;line-height:1.65}
+.dir-line:last-child{border-bottom:0}
+.dir-spk{font-weight:800;color:var(--green1);white-space:nowrap}
+.dir-colon{color:var(--mut);margin-left:2px}
+.dir-txt{flex:1;min-width:0;word-break:break-word}
+.dir-emo{flex:0 0 auto;font-size:10.5px;font-weight:700;color:var(--link);background:rgba(219,149,88,.14);border:1px solid rgba(219,149,88,.4);border-radius:999px;padding:0 7px;line-height:1.7}
+.dir-empty{font-size:12.5px;color:var(--mut);text-align:center;padding:8px}
+.dir-actions{justify-content:flex-end;flex-wrap:wrap;margin-top:12px}
 /* Google accounts & quota */
 .g-note{display:block;line-height:1.55;margin:6px 0 8px}
 .g-reset-note{display:flex;align-items:center;gap:6px;color:var(--bad);font-weight:800;font-size:12.5px;line-height:1.5;background:rgba(180,71,47,.08);border:1px solid currentColor;border-radius:10px;padding:6px 10px;margin:8px 0 0}

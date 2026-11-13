@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#FCF9EA">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob: data:; connect-src 'self' https:; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>مولد الصوت</title>
-<link rel="stylesheet" href="css/style.css?v=20261113b">
+<link rel="stylesheet" href="css/style.css?v=20261113d">
 </head>
 <body data-p="or">
 <div class="wrap">
@@ -241,6 +241,21 @@
   </div>
 </div>
 
+<div class="overlay" id="directorOverlay">
+  <div class="modal director-modal" role="dialog" aria-modal="true" aria-labelledby="dirPreviewTitle">
+    <h3 id="dirPreviewTitle">🎬 نبذة المخرج الصوتي</h3>
+    <p class="dir-preview-note">راجع الشخصيات وأصواتها. بعد «موافق» تُدخل المقاطع إلى مساحة العمل، وداخل كل صندوق نص يكون <b>الكلام المنطوق فقط</b> بدون «الاسم:».</p>
+    <div class="dir-section-title">الشخصيات وأصواتها</div>
+    <div class="dir-chars" id="directorChars"></div>
+    <div class="dir-section-title">المقاطع المقترحة <span class="dir-count" id="directorLinesCount"></span></div>
+    <div class="dir-lines" id="directorLines"></div>
+    <div class="row dir-actions">
+      <button class="ghost mini" id="directorPreviewCancel" type="button">إلغاء</button>
+      <button class="sec mini" id="directorApply" type="button">✓ موافق، أدخل المقاطع</button>
+    </div>
+  </div>
+</div>
+
 <div class="card">
   <h2><i>1</i>إدخال النص أو الملف</h2>
 
@@ -298,14 +313,8 @@
   <small>يقسّم عند نهاية الجملة (. ! ؟ ؛ … وسطر جديد)، ثم الفواصل، ثم بين الكلمات، ولا تُقطع كلمة أبداً. <span id="tokHint"></span></small>
 </div>
 
-<div class="card" id="ctrl" style="display:none">
-  <h2><i>3</i>التوليد</h2>
-  <div class="ctrlrow">
-    <button id="allbtn">▶ توليد الكل</button>
-    <button id="stopbtn" class="stop" style="display:none">⏹ إيقاف</button>
-    <button id="mergebtn" class="sec">🔗 دمج</button>
-    <button id="zipbtn" class="sec">📦 ZIP</button>
-  </div>
+<div class="card" id="directorCard">
+  <h2><i>3</i>المخرج الصوتي</h2>
   <div class="director" id="directorBox">
     <div class="row director-top">
       <button id="directorBtn" class="sec" type="button">🎬 المخرج الصوتي</button>
@@ -320,6 +329,16 @@
     </div>
     <div class="tag" id="directorProgress" aria-live="polite"></div>
     <small id="directorHint" class="ai-hint" hidden></small>
+  </div>
+</div>
+
+<div class="card" id="ctrl" style="display:none">
+  <h2><i>4</i>التوليد</h2>
+  <div class="ctrlrow">
+    <button id="allbtn">▶ توليد الكل</button>
+    <button id="stopbtn" class="stop" style="display:none">⏹ إيقاف</button>
+    <button id="mergebtn" class="sec">🔗 دمج</button>
+    <button id="zipbtn" class="sec">📦 ZIP</button>
   </div>
   <div class="bar"><i id="fill"></i></div>
   <div class="row" style="justify-content:space-between">
@@ -357,17 +376,17 @@
 </div>
 
 <div id="toast" role="status" aria-live="polite"></div>
-<script src="js/util.js?v=20261113b"></script>
-<script src="js/core.js?v=20261113b"></script>
-<script src="js/voices.js?v=20261113b"></script>
-<script src="js/google-accounts.js?v=20261113b"></script>
-<script src="js/storage.js?v=20261113b"></script>
-<script src="js/input.js?v=20261113b"></script>
-<script src="js/chunks.js?v=20261113b"></script>
-<script src="js/providers.js?v=20261113b"></script>
-<script src="js/generate.js?v=20261113b"></script>
-<script src="js/ai.js?v=20261113b"></script>
-<script src="js/merge-zip.js?v=20261113b"></script>
-<script src="js/init.js?v=20261113b"></script>
+<script src="js/util.js?v=20261113d"></script>
+<script src="js/core.js?v=20261113d"></script>
+<script src="js/voices.js?v=20261113d"></script>
+<script src="js/google-accounts.js?v=20261113d"></script>
+<script src="js/storage.js?v=20261113d"></script>
+<script src="js/input.js?v=20261113d"></script>
+<script src="js/chunks.js?v=20261113d"></script>
+<script src="js/providers.js?v=20261113d"></script>
+<script src="js/generate.js?v=20261113d"></script>
+<script src="js/ai.js?v=20261113d"></script>
+<script src="js/merge-zip.js?v=20261113d"></script>
+<script src="js/init.js?v=20261113d"></script>
 </body>
 </html>

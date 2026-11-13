@@ -198,6 +198,7 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
     if($('fsEditor').classList.contains('open')){closeFsEditor();return}
     if($('mergeOverlay').classList.contains('show')){closeMerge();return}
+    if($('directorOverlay')&&$('directorOverlay').classList.contains('show')){if(typeof closeDirectorPreview==='function')closeDirectorPreview();return}
     if($('saveOverlay').classList.contains('show')){closeSaveModal();return}
     if($('gInfoOverlay').classList.contains('show')){closeVoiceInfo();return}
     if(!$('gVoicePanel').hidden){closeVoicePanel();return}
@@ -213,6 +214,7 @@ document.addEventListener('keydown',e=>{
       :$('voiceOverlay').classList.contains('show')?$('voiceOverlay')
       :$('saveOverlay').classList.contains('show')?$('saveOverlay')
       :$('mergeOverlay').classList.contains('show')?$('mergeOverlay')
+      :$('directorOverlay')&&$('directorOverlay').classList.contains('show')?$('directorOverlay')
       :$('fsEditor').classList.contains('open')?$('fsEditor')
       :drawer.classList.contains('show')?drawer:null;
     if(layer)trapFocus(e,layer);

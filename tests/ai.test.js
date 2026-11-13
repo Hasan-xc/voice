@@ -123,4 +123,107 @@ assert.strictEqual(ai.aiCleanSpeaker(null), '');
   assert.ok(!ai.aiPartsValid(orig, [{ text: orig }], 'gemini'), 'a split needs at least two parts');
 }
 
+// 13) Speaker plan: characters, verbatim source, clean spoken text
+{
+  const raw = JSON.stringify({
+    characters: [
+      { name: ' عمار ', gender: 'male', age: 'شاب', desc: 'متحمس', voice: 'Puck' },
+      { name: 'رنا', gender: 'أنثى', age: 'متوسطة العمر', desc: 'هادئة', voice: 'Kore' },
+      { name: 'عمار', gender: 'male', voice: 'Zephyr' }
+    ],
+    lines: [
+      { speaker: 'عمار', source: 'عمار: مابكم يا شباب هيا..', text: 'مابكم يا شباب هيا..', emotion: 'حماس' },
+      { speaker: 'رنا', source: 'رنا: مالذي تفعلونه؟', text: 'رنا: مالذي تفعلونه؟', emotion: 'دهشة' }
+    ]
+  });
+  const p = ai.aiParseSpeakerPlan(raw);
+  assert.strictEqual(p.characters.length, 2, 'duplicate names collapse');
+  assert.strictEqual(p.characters[0].name, 'عمار');
+  assert.strictEqual(p.characters[0].gender, 'male');
+  assert.strictEqual(p.characters[1].gender, 'female');
+  assert.strictEqual(p.lines.length, 2);
+  assert.strictEqual(p.lines[0].text, 'مابكم يا شباب هيا..');
+  assert.strictEqual(p.lines[0].source, 'عمار: مابكم يا شباب هيا..');
+  assert.strictEqual(p.lines[1].text, 'مالذي تفعلونه؟', 'speaker prefix is stripped from the chunk text');
+  assert.strictEqual(p.lines[1].emotion, 'دهشة');
+  assert.strictEqual(ai.aiParseSpeakerPlan('nope'), null);
+  assert.strictEqual(ai.aiParseSpeakerPlan('{"lines":[]}'), null);
+}
+
+// 14) Plan validation tolerates punctuation but not dropped words
+assert.ok(ai.aiSpeechSame('عمار: مابكم يا شباب هيا..', 'عمار مابكم يا شباب هيا', 'gemini'));
+assert.ok(!ai.aiSpeechSame('عمار: مابكم يا شباب هيا..', 'مابكم يا شباب', 'gemini'));
+assert.ok(ai.aiSpeechSame('مرحبا <laugh> بالعالم', 'مرحبا بالعالم', 'gemini'));
+
+// 15) Fallback lines never lose the window text
+{
+  const src = 'جملة أولى. جملة ثانية! جملة ثالثة؟';
+  const lines = ai.aiFallbackLines(src);
+  assert.strictEqual(lines.length, 3);
+  assert.strictEqual(lines.map(l => l.text).join(' '), src);
+  assert.ok(lines.every(l => l.speaker === ''));
+}
+
+// 16) Finalizing the plan: every speaker gets one valid, distinct voice
+{
+  const catalog = [
+    { id: 'Puck', gender: 'male', age: '30' },
+    { id: 'Fenrir', gender: 'male' },
+    { id: 'Kore', gender: 'female' },
+    { id: 'Zephyr', gender: 'female' }
+  ];
+  const plan = {
+    characters: [
+      { name: 'عمار', gender: 'male', voice: 'NOPE' },
+      { name: 'رنا', gender: 'female', voice: '' }
+    ],
+    lines: [
+      { speaker: 'عمار', source: 'عمار: أهلاً', text: 'أهلاً' },
+      { speaker: 'رنا', source: 'رنا: مرحباً', text: 'مرحباً' },
+      { speaker: 'خالد', source: 'خالد: السلام', text: 'السلام' }
+    ]
+  };
+  const fin = ai.aiFinalizePlan(plan, catalog);
+  assert.strictEqual(fin.characters.length, 3, 'line speakers are added');
+  const ammar = fin.characters.find(c => c.name === 'عمار');
+  const rana = fin.characters.find(c => c.name === 'رنا');
+  assert.strictEqual(ammar.voice, 'Puck', 'invalid voice is replaced by a male voice');
+  assert.strictEqual(rana.voice, 'Kore', 'female voice is chosen');
+  assert.notStrictEqual(ammar.voice, rana.voice);
+}
+
+// 17) Chunks contain the spoken line only, with the approved character voice
+{
+  const plan = {
+    characters: [
+      { name: 'عمار', gender: 'male', voice: 'Puck' },
+      { name: 'رنا', gender: 'female', voice: 'Kore' }
+    ],
+    lines: [
+      { speaker: 'عمار', text: 'مابكم يا شباب هيا..', style: 'متحمس' },
+      { speaker: 'رنا', text: '<gasp> مالذي تفعلونه؟', emotion: 'دهشة' }
+    ]
+  };
+  const map = { [ai.aiCharKey('عمار')]: 'Puck', [ai.aiCharKey('رنا')]: 'Kore' };
+  const chunks = ai.aiBuildSpeakerChunks(plan, { voices: map });
+  assert.strictEqual(chunks.length, 2);
+  assert.strictEqual(chunks[0].text, 'مابكم يا شباب هيا..');
+  assert.ok(!chunks[0].text.includes('عمار'));
+  assert.strictEqual(chunks[0].voice, 'Puck');
+  assert.strictEqual(chunks[1].voice, 'Kore');
+  assert.ok(chunks[1].text.includes('<gasp>'), 'emotion tag stays in the chunk');
+  assert.strictEqual(chunks[0].name, '1');
+  assert.strictEqual(chunks[1].speaker, 'رنا');
+}
+
+// 18) The prompt is explicit about verbatim source and speaker splitting
+{
+  const sys = ai.aiSpeakerSystem('gemini', { tags: true, style: true, voices: true });
+  assert.ok(sys.includes('source'));
+  assert.ok(sys.includes('بدون «الاسم:»'));
+  assert.ok(sys.includes('تغيّر متحدث'));
+  assert.ok(sys.includes('<gasp>'));
+  assert.ok(sys.includes('availableVoices'));
+}
+
 console.log('ai.test.js: all tests passed');

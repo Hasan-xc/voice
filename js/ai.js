@@ -17,6 +17,9 @@ const AI_TIMEOUT=90000;
 const AI_WINDOW_CHARS=6000;
 const AI_WINDOW_UNITS=90;
 const AI_MIN_RATIO=0.3;
+// Speaker-plan windows are smaller: the model must copy every word verbatim.
+const AI_PLAN_WINDOW=2600;
+const AI_PLAN_UNITS=40;
 
 function aiNormalize(s){return String(s==null?'':s).replace(/\r/g,'').replace(/\s+/g,' ').trim()}
 
@@ -176,6 +179,143 @@ function aiPartsValid(original,parts,mode){
     texts.push(t);
   }
   return aiTextMatches(original,texts.join(' '),mode);
+}
+
+// ---- AI director: speaker plan (preview before applying) -----------------
+// The director returns a plan (characters + lines) that is shown to the user
+// for review. Only after «موافق» the lines become chunks in the work area.
+function aiShort(s,n){return typeof s==='string'?s.replace(/\s+/g,' ').trim().slice(0,n||80):''}
+function aiCharName(s){return aiShort(s,40).replace(/^[\s:：]+|[\s:：]+$/g,'')}
+// Names are compared without diacritics so «رنا» and «رنـا» stay one character.
+function aiCharKey(s){
+  return aiCharName(s)
+    .replace(/[\u064B-\u0652\u0670\u0640]/g,'')
+    .replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه')
+    .replace(/\s+/g,'')
+    .toLowerCase();
+}
+function aiGender(s){
+  const g=String(s==null?'':s).toLowerCase();
+  if(/female|woman|girl|أنثى|انثى|امرأة|امراه|بنت|فتاة|فتاه/.test(g))return 'female';
+  if(/male|man|boy|ذكر|رجل|ولد|شاب|فتى/.test(g))return 'male';
+  if(/neutral|محايد/.test(g))return 'neutral';
+  return '';
+}
+// The model may keep the «الاسم:» label inside text. The chunk must not.
+function aiStripSpeakerPrefix(text,speaker){
+  const t=String(text==null?'':text).trim();
+  const name=aiCharName(speaker);
+  if(!name)return t;
+  const escName=name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  return t.replace(new RegExp('^\\s*'+escName+'\\s*[:：\\-–—]\\s*'),'').trim();
+}
+// Parse {"characters":[...],"lines":[...]}. Each line keeps `source` (verbatim
+// original) for validation and `text` (spoken words only) for the chunk.
+function aiParseSpeakerPlan(raw){
+  const j=aiExtractJson(raw);
+  if(!j||typeof j!=='object')return null;
+  const rawChars=Array.isArray(j.characters)?j.characters:[];
+  const rawLines=Array.isArray(j.lines)?j.lines:[];
+  const characters=[],seen=new Set();
+  for(const c of rawChars){
+    if(!c||typeof c!=='object')continue;
+    const name=aiCharName(c.name),key=aiCharKey(name);
+    if(!key||seen.has(key))continue;
+    seen.add(key);
+    characters.push({
+      name,
+      gender:aiGender(c.gender),
+      age:aiShort(c.age,30),
+      desc:aiShort(c.desc,90),
+      voice:aiShort(c.voice,120)
+    });
+  }
+  const lines=[];
+  for(const l of rawLines){
+    if(!l||typeof l!=='object')continue;
+    const speaker=aiCharName(l.speaker);
+    const source=aiNormalize(l.source||l.text);
+    let text=aiNormalize(l.text||l.source);
+    text=aiStripSpeakerPrefix(text,speaker);
+    if(!text)text=aiStripSpeakerPrefix(source,speaker);
+    if(!text)continue;
+    lines.push({
+      speaker,
+      source:source||text,
+      text,
+      emotion:aiShort(l.emotion,24),
+      style:aiCleanStyle(l.style)
+    });
+  }
+  if(!lines.length)return null;
+  return {characters,lines};
+}
+function aiPlanSourceText(lines){
+  return (Array.isArray(lines)?lines:[]).map(l=>aiNormalize(l&&(l.source||l.text))).join(' ');
+}
+// Compare spoken content only: ignore tags, punctuation, spacing and case so a
+// model's punctuation edit cannot drop a whole window of dialogue.
+function aiSpeechKey(text,mode){
+  return aiStripTags(text,mode).replace(/[\s.,!?؟؛،:;…«»"'“”()\[\]{}<>ـ\-]+/g,'').toLowerCase();
+}
+function aiSpeechSame(a,b,mode){
+  const ka=aiSpeechKey(a,mode),kb=aiSpeechKey(b,mode);
+  return !!ka&&ka===kb;
+}
+function aiFallbackLines(text){
+  const sents=splitSentences(String(text==null?'':text));
+  const src=sents.length?sents:[aiNormalize(text)].filter(Boolean);
+  return src.map(t=>({speaker:'',source:aiNormalize(t),text:aiNormalize(t),emotion:'',style:''}));
+}
+function aiPickVoice(gender,catalog,used){
+  const list=(Array.isArray(catalog)?catalog:[]).filter(v=>v&&v.id);
+  if(!list.length)return '';
+  const free=list.filter(v=>!used||!used.has(v.id));
+  const pool=free.length?free:list;
+  const want=gender&&pool.find(v=>aiGender(v.gender)===gender);
+  return (want||pool[0]).id;
+}
+// Ensure every line speaker exists in characters and every character has one
+// valid, distinct-when-possible voice from the current provider catalog.
+function aiFinalizePlan(plan,catalog){
+  const chars=plan&&Array.isArray(plan.characters)?plan.characters.map(c=>({...c})):[];
+  const lines=plan&&Array.isArray(plan.lines)?plan.lines.slice():[];
+  const byKey=new Map();
+  chars.forEach(c=>{const k=aiCharKey(c.name);if(k)byKey.set(k,c)});
+  for(const l of lines){
+    const name=l.speaker||'الراوي',key=aiCharKey(name);
+    if(!key)continue;
+    if(!byKey.has(key)){
+      const c={name,gender:'',age:'',desc:'',voice:''};
+      chars.push(c);byKey.set(key,c);
+    }
+  }
+  const ids=new Set((Array.isArray(catalog)?catalog:[]).map(v=>v&&v.id).filter(Boolean));
+  const used=new Set();
+  for(const c of chars){
+    if(c.voice&&!ids.has(c.voice))c.voice='';
+    if(c.voice&&used.has(c.voice))c.voice='';
+    if(!c.voice)c.voice=aiPickVoice(c.gender,catalog,used);
+    if(c.voice)used.add(c.voice);
+  }
+  return {characters:chars,lines};
+}
+// Build the actual chunks: text is the spoken line only (no «name:»), voice is
+// the user-approved character voice, style/speaker stay internal metadata.
+function aiBuildSpeakerChunks(plan,opts){
+  const map=(opts&&opts.voices)||{};
+  const lines=plan&&Array.isArray(plan.lines)?plan.lines:[];
+  return lines.map((l,i)=>{
+    const key=aiCharKey(l.speaker);
+    return {
+      text:aiNormalize(l.text),
+      voice:(key&&map[key])||'',
+      speaker:l.speaker||'',
+      style:l.style||'',
+      name:String(i+1),
+      ext:'mp3'
+    };
+  }).filter(c=>c.text);
 }
 
 // ---- providers / models (browser only) ------------------------------------
@@ -394,15 +534,19 @@ function updateDirectorState(){
   const info=directorInfo(),opts=directorOptions();
   const anyOpt=opts.style||opts.tags||opts.voices;
   const hasChunks=!!(typeof chunks!=='undefined'&&chunks.length);
-  btn.disabled=!!directorCtl||!info||!hasChunks||!anyOpt;
+  const hasText=!!(($('text')&&$('text').value||'').trim()||hasChunks);
+  // The speaker-preview flow works on the source text, so chunks are not
+  // required when voice distribution is enabled.
+  const ready=opts.voices?hasText:hasChunks;
+  btn.disabled=!!directorCtl||!info||!ready||!anyOpt;
   const hint=$('directorHint');
   let msg='';
   if(P()==='kie')msg='المخرج الصوتي غير مدعوم مع kie.';
   else if(!info)msg='أضف مفتاح المزود الحالي في الإعدادات لاستخدام المخرج الصوتي.';
-  else if(!hasChunks)msg='قسّم النص أولاً لاستخدام المخرج الصوتي.';
+  else if(!ready)msg=opts.voices?'اكتب النص أو الصقه أولاً.':'قسّم النص أولاً لاستخدام المخرج الصوتي.';
   else if(!anyOpt)msg='اختر خياراً واحداً على الأقل للمخرج الصوتي.';
   if(hint){hint.hidden=!msg;hint.textContent=msg}
-  btn.title=msg||'تحسين الأداء والوسوم وتوزيع الأصوات بمساعدة الذكاء الاصطناعي';
+  btn.title=msg||(opts.voices?'تحليل الشخصيات وعرض نبذة قبل إدخال المقاطع':'تحسين الأداء والوسوم وتوزيع الأصوات بمساعدة الذكاء الاصطناعي');
 }
 function clearDirectorUndo(){
   if(directorUndo){
@@ -434,6 +578,42 @@ function setDirectorBusy(busy,label){
   if(desc)desc.disabled=busy;
   ['dirStyle','dirTags','dirVoices'].forEach(id=>{const el=$(id);if(el)el.disabled=busy});
 }
+// Explicit instructions for the speaker-splitting stage. This is the stage the
+// user sees as a preview (نبذة) before anything is placed in the work area.
+function aiSpeakerSystem(tagMode,opts){
+  const tags=aiTagList(tagMode);
+  const tagList=tagMode==='fish'
+    ?tags.map(t=>'['+t+']').join(' ')
+    :tags.map(t=>'<'+t+'>').join(' ');
+  const tagRule=opts.tags
+    ?`أضف وسم أداء واحداً على الأكثر في بداية الجملة أو نهايتها، من هذه القائمة فقط: ${tagList}. اختر الوسم حسب انفعال الشخصية في هذا الموضع من القصة (مثل <gasp> للدهشة، <sigh> للحسرة، <laugh> للضحك). لا تترجم الوسم ولا تكتب وصفاً عربياً مكانه.`
+    :'لا تضف أي وسوم إطلاقاً.';
+  return `أنت مخرج صوتي ومحلل حوارات محترف. مهمتك الأولى والأهم: تقسيم النص إلى أدوار متحدثين قبل توليد أي صوت.
+ستتلقى نصاً عربياً (سرد وحوار). أعد JSON فقط بهذا الشكل:
+{"characters":[{"name":"عمار","gender":"male","age":"شاب","desc":"شاب متحمس في العشرين","voice":"Puck"}],"lines":[{"speaker":"عمار","source":"عمار: مابكم يا شباب هيا..","text":"مابكم يا شباب هيا..","emotion":"حماس","style":"متحمس"}]}
+
+القواعد الإلزامية:
+1) قسّم النص بالترتيب إلى lines. كل line هو جملة أو جملتان متتاليتان لشخصية واحدة فقط. اقطع عند كل تغيّر متحدث.
+2) source: انسخ الجزء الأصلي من النص حرفياً كما هو، بما فيه «الاسم:» إن وُجد. مجموع كل source بالترتيب يجب أن يعيد النص الأصلي كاملاً بلا زيادة أو نقصان.
+3) text: الكلام المنطوق فقط، بدون «الاسم:» وبدون علامات الاقتباس وبدون كلمات السرد المحيطة. لا تحذف أي كلمة من الكلام ولا تعيد صياغته ولا تلخّصه.
+4) استخرج كل الشخصيات التي تتحدث أو تُذكر. استخدم الاسم نفسه لكل ظهور، ولا تخلط بين شخصيتين.
+5) استنتج الجنس والعمر من الاسم والسياق والقصة (مثال: عمار = شاب، رنا = بنت متوسطة العمر، الجدة = مسنة). اكتب age بالعربية.
+6) اختر voice من availableVoices فقط بما يناسب الجنس والعمر والشخصية. لا تخترع معرّفاً. اجعل لكل شخصية صوتاً مختلفاً إن أمكن.
+7) السرد غير الحواري يُسند إلى الراوي (speaker:"الراوي") بصوت راوٍ مناسب، ويبقى في lines حتى لا يضيع النص.
+8) ${tagRule}
+9) ${opts.style?'style: وصف قصير للأداء (نبرة/سرعة/انفعال) لكل سطر.':'اترك style فارغاً.'}
+10) لا تخرج أي نص خارج JSON.`;
+}
+function aiSpeakerUser(text,characters,catalog,desc,prevTail){
+  return JSON.stringify({
+    work:desc||'',
+    previousContext:prevTail||'',
+    knownCharacters:Array.isArray(characters)?characters:[],
+    availableVoices:Array.isArray(catalog)?catalog:[],
+    text:String(text||'')
+  });
+}
+
 function aiDirectorSystem(tagMode,opts){
   const tags=aiTagList(tagMode);
   const tagLine=opts.tags
@@ -469,7 +649,7 @@ function aiDirectorUser(items,opts,prevStyle,speakerMap,knownSpeakers,voiceCatal
     items:items.map(it=>({i:it.i,text:it.text,style:it.style||'',speaker:it.speaker||''}))
   });
 }
-async function aiRunDirector(){
+async function aiDirectorChunks(){
   if(directorCtl)return;
   const info=directorInfo();
   if(!info){updateDirectorState();return toast(P()==='kie'?'المخرج الصوتي غير مدعوم مع kie':'أضف مفتاح المزود الحالي لاستخدام المخرج الصوتي')}
@@ -611,6 +791,160 @@ async function aiRunDirector(){
   }
 }
 
+// ---- UI: speaker preview before applying ---------------------------------
+let directorPlan=null;
+function directorSourceText(){
+  const t=($('text')&&$('text').value||'').trim();
+  if(t)return t;
+  return (typeof chunks!=='undefined'?chunks:[]).map(c=>c.text).filter(Boolean).join('\n').trim();
+}
+function dirCharMeta(c){
+  const g=c.gender==='female'?'أنثى':c.gender==='male'?'ذكر':c.gender==='neutral'?'محايد':'';
+  return [g,c.age,c.desc].filter(Boolean).join(' · ');
+}
+function directorVoiceOptions(selected){
+  const cat=(directorPlan&&directorPlan.catalog)||[];
+  return cat.map(v=>{
+    const extra=[v.gender==='female'?'أنثى':v.gender==='male'?'ذكر':'',v.age].filter(Boolean).join(' ');
+    return `<option value="${esc(v.id)}"${v.id===selected?' selected':''}>${esc(v.name||v.id)}${extra?' — '+esc(extra):''}</option>`;
+  }).join('');
+}
+function renderDirectorPreview(){
+  if(!directorPlan)return;
+  const chars=$('directorChars'),lines=$('directorLines'),cnt=$('directorLinesCount');
+  if(chars){
+    chars.innerHTML=directorPlan.characters.map((c,i)=>`<div class="dir-char">
+      <div class="dir-char-id"><span class="dir-char-name">${esc(c.name)}</span>
+      <span class="dir-char-meta">${esc(dirCharMeta(c)||'شخصية')}</span></div>
+      <select data-dcv="${i}" dir="ltr" aria-label="صوت ${esc(c.name)}">${directorVoiceOptions(c.voice)}</select>
+    </div>`).join('')||'<div class="dir-empty">لم تُكتشف شخصيات — سيُستخدم الراوي.</div>';
+  }
+  if(lines){
+    lines.innerHTML=directorPlan.lines.map(l=>`<div class="dir-line">
+      <span class="dir-spk">${esc(l.speaker||'الراوي')}</span><span class="dir-colon">:</span>
+      <span class="dir-txt">${esc(l.text)}</span>
+      ${l.emotion?`<span class="dir-emo">${esc(l.emotion)}</span>`:''}
+    </div>`).join('');
+  }
+  if(cnt)cnt.textContent=`(${fmt(directorPlan.lines.length)})`;
+}
+function openDirectorPreview(){
+  renderDirectorPreview();
+  const ov=$('directorOverlay');
+  if(ov)ov.classList.add('show');
+}
+function closeDirectorPreview(){
+  const ov=$('directorOverlay');
+  if(ov)ov.classList.remove('show');
+}
+function applyDirectorPreview(){
+  if(!directorPlan)return;
+  const voiceMap={};
+  directorPlan.characters.forEach(c=>{const k=aiCharKey(c.name);if(k&&c.voice)voiceMap[k]=c.voice});
+  const next=aiBuildSpeakerChunks(directorPlan,{voices:voiceMap});
+  if(!next.length)return toast('لا توجد مقاطع لإدخالها');
+  const snapshot=(typeof chunks!=='undefined'?chunks:[]).map(c=>({...c}));
+  // Release the previous undo snapshot (its audio is no longer reachable).
+  clearDirectorUndo();
+  // Old audio stays in the undo snapshot; it is released only if the undo is
+  // discarded, exactly like the previous director behaviour.
+  chunks=next;
+  directorUndo=snapshot;
+  const ub=$('directorUndo');if(ub)ub.hidden=false;
+  directorPlan=null;
+  closeDirectorPreview();
+  render();markDirty();
+  if(typeof autoMergeName==='function')autoMergeName(false);
+  toast(`تم إدخال ${fmt(next.length)} مقطعاً حسب المتحدثين ✓`);
+}
+async function aiDirectorPreview(){
+  if(directorCtl)return;
+  const info=directorInfo();
+  if(!info){updateDirectorState();return toast(P()==='kie'?'المخرج الصوتي غير مدعوم مع kie':'أضف مفتاح المزود الحالي لاستخدام المخرج الصوتي')}
+  const text=directorSourceText();
+  if(!text)return toast('اكتب النص أو الصقه أولاً');
+  const opts=directorOptions();
+  if(!opts.style&&!opts.tags&&!opts.voices)return toast('اختر خياراً واحداً على الأقل للمخرج الصوتي');
+  const catalog=directorVoiceCatalog();
+  if(!catalog.length)return toast('لا توجد أصوات متاحة لهذا المزود — أضف صوتاً من الإعدادات');
+  try{
+    if(localStorage.getItem('directornotice')!=='1'){
+      const ok=confirm('سيُرسل نص العمل إلى مزود الذكاء الاصطناعي المختار ('+(info.p==='g'?'Google':'OpenRouter')+') لتحليل الشخصيات وتقسيم الحوار. ستظهر لك نبذة للمراجعة قبل إدخال أي مقطع إلى مساحة العمل. متابعة؟');
+      if(!ok)return;
+      localStorage.setItem('directornotice','1');
+    }
+  }catch(e){}
+  const tagMode=directorTagMode();
+  const desc=(($('directorDesc')&&$('directorDesc').value)||'').trim();
+  const model=($('smartModel').value||'').trim()||aiModelFor(info.p);
+  const units=aiUnitsFromText(text,s=>s.length,AI_PLAN_WINDOW);
+  const wins=aiWindows(units,AI_PLAN_WINDOW,AI_PLAN_UNITS);
+  directorCtl=new AbortController();
+  const ctl=directorCtl;
+  setDirectorBusy(true,'جارٍ تحليل الشخصيات...');
+  try{
+    const charMap=new Map();
+    const lines=[];
+    let prevTail='';
+    for(let w=0;w<wins.length;w++){
+      if(ctl.signal.aborted)throw abortError();
+      const [a,b]=wins[w];
+      const winText=units.slice(a,b).map(u=>u.t).join(' ');
+      const sys=aiSpeakerSystem(tagMode,opts);
+      const user=aiSpeakerUser(winText,[...charMap.values()],catalog,desc,prevTail);
+      const raw=await aiChat(info,model,sys,user,ctl);
+      if(ctl.signal.aborted)throw abortError();
+      const parsed=aiParseSpeakerPlan(raw);
+      let winLines=[];
+      if(parsed&&parsed.lines.length&&aiSpeechSame(winText,aiPlanSourceText(parsed.lines),tagMode)){
+        winLines=parsed.lines;
+        for(const c of parsed.characters){
+          const k=aiCharKey(c.name);if(!k)continue;
+          const old=charMap.get(k);
+          if(!old)charMap.set(k,{...c});
+          else{
+            if(!old.gender&&c.gender)old.gender=c.gender;
+            if(!old.age&&c.age)old.age=c.age;
+            if(!old.desc&&c.desc)old.desc=c.desc;
+            if(!old.voice&&c.voice)old.voice=c.voice;
+          }
+        }
+      }else{
+        // Never lose text: fall back to the original sentences of this window.
+        winLines=aiFallbackLines(winText);
+      }
+      lines.push(...winLines);
+      const last=winLines[winLines.length-1];
+      prevTail=last?last.text.slice(-160):'';
+      const pr=$('directorProgress');if(pr)pr.textContent=`تحليل ${w+1} من ${wins.length}`;
+    }
+    if(!lines.length)throw new Error('empty');
+    for(const l of lines){
+      const name=l.speaker||'الراوي',k=aiCharKey(name);
+      if(k&&!charMap.has(k))charMap.set(k,{name,gender:'',age:'',desc:'',voice:''});
+    }
+    const fin=aiFinalizePlan({characters:[...charMap.values()],lines},catalog);
+    directorPlan={characters:fin.characters,lines:fin.lines,catalog,tagMode};
+    setDirectorBusy(false);
+    openDirectorPreview();
+  }catch(e){
+    if(ctl.signal.aborted)toast('أُلغي المخرج الصوتي');
+    else toast('تعذّر تحليل الشخصيات — لم يتغيّر شيء');
+  }finally{
+    directorCtl=null;
+    setDirectorBusy(false);
+    updateDirectorState();
+  }
+}
+function aiRunDirector(){
+  if(directorCtl)return;
+  const opts=directorOptions();
+  // With voice distribution on, the director re-splits the source text by
+  // speaker and shows a preview. Without it, it keeps the old per-chunk flow.
+  if(opts.voices)return aiDirectorPreview();
+  return aiDirectorChunks();
+}
+
 if(typeof document!=='undefined'&&document.getElementById){
   $('smartsplitbtn').onclick=smartSplitAI;
   $('smartSplitCancel').onclick=()=>{if(aiCtl)aiCtl.abort()};
@@ -621,6 +955,17 @@ if(typeof document!=='undefined'&&document.getElementById){
   if($('directorBtn'))$('directorBtn').onclick=aiRunDirector;
   if($('directorCancel'))$('directorCancel').onclick=()=>{if(directorCtl)directorCtl.abort()};
   if($('directorUndo'))$('directorUndo').onclick=undoDirector;
+  if($('directorApply'))$('directorApply').onclick=applyDirectorPreview;
+  if($('directorPreviewCancel'))$('directorPreviewCancel').onclick=()=>{directorPlan=null;closeDirectorPreview()};
+  if($('directorOverlay')){
+    $('directorOverlay').onclick=e=>{if(e.target.id==='directorOverlay'){directorPlan=null;closeDirectorPreview()}};
+    $('directorOverlay').addEventListener('change',e=>{
+      const i=e.target.dataset&&e.target.dataset.dcv;
+      if(i==null||!directorPlan)return;
+      const c=directorPlan.characters[+i];
+      if(c)c.voice=e.target.value;
+    });
+  }
   ['dirStyle','dirTags','dirVoices'].forEach(id=>{const el=$(id);if(el)el.onchange=updateDirectorState});
   syncSmartModelField(true);
   updateSmartSplitState();
@@ -631,6 +976,8 @@ if(typeof module!=='undefined'&&module.exports){
     aiNormalize,aiSplitSentences,aiSplitLong,aiUnitsFromText,aiExtractJson,aiParseBreaks,
     aiSanitizeBreaks,aiSegmentsFromUnits,aiWindows,aiBuildPrompt,aiContentText,
     aiTagList,aiTagRegex,aiStripTags,aiTextMatches,aiParseDirectorItems,aiCleanStyle,
-    aiCleanSpeaker,aiPartsValid
+    aiCleanSpeaker,aiPartsValid,aiParseSpeakerPlan,aiPlanSourceText,aiSpeechKey,
+    aiSpeechSame,aiFallbackLines,aiFinalizePlan,aiBuildSpeakerChunks,aiCharKey,
+    aiStripSpeakerPrefix,aiGender,aiPickVoice,aiSpeakerSystem
   };
 }
