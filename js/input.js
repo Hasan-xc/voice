@@ -24,7 +24,7 @@ $('clearsave').onclick=()=>{
   $('filename').textContent='';$('filename').style.display='none';
   $('dzTitle').textContent='اسحب الملف هنا أو اضغط لرفعه';
   chunks=[];currentWorkId=null;currentWorkName='';dirty=false;
-  $('mergeName').value='merged';
+  $('mergeName').value='merged';mergeNameAuto='merged';
   setInputTab('upload');
   render();showStats();syncFileBox();
   $('savemsg').textContent='تم مسح كل شيء، رجع الموقع لوضعه الأول';
@@ -68,6 +68,7 @@ async function handleFile(f){
     $('dzTitle').textContent='✓ تم رفع الملف — اضغط للاستبدال';
     setInputTab('paste');
     showStats();markDirty();syncFileBox();
+    if(typeof autoMergeName==='function')autoMergeName(true);
   }catch(err){$('filename').textContent='تعذّرت القراءة';alert(err.message)}
   finally{$('file').value=''}
 }
@@ -90,7 +91,7 @@ async function pasteFromClipboard(btn){
       const clip=await navigator.clipboard.readText();
       if(!clip)return alert('الحافظة فارغة');
       if($('fsEditor').classList.contains('open')){$('fsText').value=clip;syncFsTextChange()}
-      else{cancelAll(false);$('text').value=clip;showStats();markDirty();syncFileBox()}
+      else{cancelAll(false);$('text').value=clip;showStats();markDirty();syncFileBox();if(typeof autoMergeName==='function')autoMergeName(true)}
       flashCopyIcon(btn);return;
     }
     throw new Error('no-api');

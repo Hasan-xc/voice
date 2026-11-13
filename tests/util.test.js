@@ -135,4 +135,11 @@ t('Google voice catalog has 30 unique voices with gender', () => {
   assert.ok(u.GOOGLE_TTS_VOICES.some(v => v[0] === 'Zephyr' && v[2] === 'female'));
 });
 
+t('storyTitle strips markdown/emoji and keeps the first words', () => {
+  assert.strictEqual(u.storyTitle('### سر البيت القديم 🏚️\n\nفي إحدى الليالي'), 'سر البيت القديم');
+  assert.strictEqual(u.storyTitle('1. الفصل الأول: البداية'), 'الفصل الأول البداية');
+  assert.strictEqual(u.storyTitle(''), '');
+  assert.ok(u.storyTitle('كلمة '.repeat(20)).split(' ').length <= 5);
+});
+
 console.log(`util.test.js: all ${n} tests passed`);

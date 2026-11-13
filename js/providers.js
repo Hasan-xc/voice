@@ -48,10 +48,12 @@ async function orBlob(c,ctl){
 // kie.ai: createTask -> poll recordInfo -> download resultUrls[0]
 async function kieBlob(c,ctl,m){
   const H={Authorization:'Bearer '+curKey(),'Content-Type':'application/json'};
+  const chunkVoice=String(c.voice||'').trim();
+  const voiceName=(chunkVoice&&googleVoiceNames().includes(chunkVoice))?chunkVoice:($('kvoice').value.trim()||'Kore');
   const body={
     model:$('kmodel').value.trim(),
     input:{
-      speakers:[{speaker_id:'Speaker 1',voice_name:$('kvoice').value.trim()||'Kore'}],
+      speakers:[{speaker_id:'Speaker 1',voice_name:voiceName}],
       dialogue_turns:[{speaker_id:'Speaker 1',text:c.text}],
       filler_words:$('kfill').checked,
       temperature:Math.min(2,Math.max(0,+$('ktemp').value||1))
@@ -65,7 +67,6 @@ async function kieBlob(c,ctl,m){
   }
   const id=j.data&&j.data.taskId;if(!id)throw {status:0,body:'لم يُرجع kie معرّف مهمة'};
   for(let n=0;n<KIE_POLL_MAX;n++){
-    if(m)m.textContent=`جارٍ التوليد في kie... (${n+1})`;
     await sleepAbort(KIE_POLL_MS+Math.round((Math.random()*2-1)*KIE_POLL_JITTER),ctl);
     if(ctl.signal.aborted)throw abortError();
     const q=await fetchT('https://api.kie.ai/api/v1/jobs/recordInfo?taskId='+encodeURIComponent(id),{signal:ctl.signal,headers:{Authorization:H.Authorization}},KIE_POLL_TIMEOUT);

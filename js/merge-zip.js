@@ -111,9 +111,9 @@ $('mergeDoBtn').onclick=async()=>{
   catch(err){return alert('تعذّر الدمج: '+err.message)}
   const url=URL.createObjectURL(blob);
   if(mergeUrl)URL.revokeObjectURL(mergeUrl);mergeUrl=url;
-  const base=cleanName($('mergeName').value)||cleanName(currentWorkName)||'merged';
+  const base=cleanName($('mergeName').value)||cleanName(storyTitle($('text').value))||cleanName(currentWorkName)||'merged';
   const note='<p class="tag">دُمج الصوت بعد فك ترميزه إلى WAV (المدة والترتيب دقيقان).</p>';
-  const html=`<p class="tag">دُمج ${mergeItems.length} صوتاً بالترتيب</p>${note}<audio controls src="${url}"></audio><a href="${url}" data-ext="wav" download="${esc(base)}.wav">تحميل الملف المدمج</a>`;
+  const html=`<p class="tag">دُمج ${mergeItems.length} صوتاً بالترتيب</p>${note}<div class="audio-row"><audio controls src="${url}"></audio><a class="dl-btn" href="${url}" data-ext="wav" download="${esc(base)}.wav" title="تنزيل الملف المدمج: ${esc(base)}.wav" aria-label="تنزيل الملف المدمج">${dlIcon}</a></div><p class="tag" style="margin:4px 0 0">${esc(base)}.wav</p>`;
   $('mergeResult').innerHTML=html;
   $('mergeout').innerHTML=html;
 };
@@ -183,7 +183,7 @@ $('zipbtn').onclick=async()=>{
   const files=[],used=new Set();
   for(let i=0;i<chunks.length;i++)if(chunks[i].blob)files.push({name:uniqueName(fname(i,chunks[i]),used),blob:chunks[i].blob});
   if(!files.length)return alert('لا توجد أصوات مولّدة للتصدير');
-  const merged=cleanName($('mergeName').value);
+  const merged=cleanName($('mergeName').value)||cleanName(storyTitle($('text').value));
   const base=((merged&&merged!=='merged')?merged:(cleanName(currentWorkName)||merged||'audio-parts')).replace(/\.zip$/i,'');
   const zipName=(base||'audio-parts')+'.zip';
   try{

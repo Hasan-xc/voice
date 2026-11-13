@@ -36,6 +36,29 @@
     return out;
   }
 
+  // ---- story title -> safe file name --------------------------------------
+  // "### سر البيت القديم 🏚️" -> "سر البيت القديم". Used as the default name
+  // for the merged file and the ZIP, so exports are named after the story
+  // instead of the generic "merged".
+  function storyTitle(text, maxWords = 5, maxLen = 48) {
+    const src = String(text == null ? '' : text).replace(/\r/g, '\n');
+    let line = '';
+    for (const raw of src.split('\n')) {
+      if (raw.trim()) { line = raw.trim(); break; }
+    }
+    if (!line) return '';
+    const s = line
+      .replace(/^[\s#>*_=~\-–—•·]+/, '')                 // leading markdown bullets
+      .replace(/^[\d٠-٩]+[.)\-–—]\s*/, '')               // "1." / "١-" numbering
+      .replace(/[\u{1F000}-\u{1FAFF}\u{2190}-\u{21FF}\u{2300}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\u200D]/gu, ' ')
+      .replace(/[\\/:*?"<>|\x00-\x1f]/g, ' ')            // forbidden in file names
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!s) return '';
+    return s.split(' ').filter(Boolean).slice(0, Math.max(1, maxWords)).join(' ')
+      .slice(0, maxLen).replace(/[.,;:!?،؛…#*_\s]+$/, '').trim();
+  }
+
   // ---- Windows-1256 (Arabic ANSI) decoder ---------------------------------
   // TextDecoder does not support windows-1256 in Safari/Node, so the mapping is
   // embedded. Values are the official CP1256 code points for bytes 0x80..0xFF.
@@ -290,7 +313,7 @@
   }
 
   return {
-    splitAfterPunct, splitSentences, SENT_PUNCT, CLAUSE_PUNCT,
+    splitAfterPunct, splitSentences, SENT_PUNCT, CLAUSE_PUNCT, storyTitle,
     decodeCp1256, decodeTextBuffer, arabicCount,
     sniffAudioExt, wavHeader, wavFromPcm, parseWav, mergeWavs, blobBytes,
     pcmToChannels, resampleChannel, floatToInt16,
