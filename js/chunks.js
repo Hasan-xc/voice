@@ -70,22 +70,15 @@ function render(){
         <span class="vp-ico" aria-hidden="true">🎚️</span>
         <select data-v="${i}" dir="ltr" aria-label="صوت المقطع ${i+1}"></select>
       </label>
-    </div>
-    <div class="ta-wrap chunk-ta">
-      <textarea data-t="${i}" aria-label="نص المقطع ${i+1}">${esc(c.text)}</textarea>
       <div class="ta-acts">
         <button type="button" class="gen-ico" data-g="${i}" title="توليد صوت هذا المقطع" aria-label="توليد صوت المقطع ${i+1}">${genIcon}</button>
         <span class="gen-spin" aria-hidden="true"></span>
         <button type="button" class="cancel-ico" data-c="${i}" title="إلغاء التوليد" aria-label="إلغاء توليد المقطع ${i+1}">✕</button>
       </div>
     </div>
+    <textarea class="chunk-text" data-t="${i}" aria-label="نص المقطع ${i+1}">${esc(c.text)}</textarea>
     <div id="a${i}"></div>
-    <div class="tag chunk-msg" id="m${i}"></div>
-    <div class="meta-grid">
-      <label class="meta-f"><span>اسم الملف</span><input class="fname" data-n="${i}" dir="ltr" value="${esc(c.name||defName(i))}" aria-label="اسم ملف المقطع ${i+1}"></label>
-      <label class="meta-f"><span>اسم المتحدث</span><input class="speaker-inp" data-sp="${i}" dir="auto" value="${esc(c.speaker||'')}" placeholder="مثلاً: الراوي" aria-label="اسم متحدث المقطع ${i+1}"></label>
-      <label class="meta-f wide"><span>أسلوب الإلقاء</span><input class="style-inp" data-s="${i}" dir="auto" value="${esc(c.style||'')}" placeholder="اختياري — مثلاً: هادئ ودافئ" aria-label="أسلوب إلقاء المقطع ${i+1}"></label>
-    </div>`;
+    <div class="tag chunk-msg" id="m${i}"></div>`;
     $('chunks').appendChild(d);cs(i);
     if(c.blob){$('c'+i).classList.add('done');refreshChunkCard(i);
       $('a'+i).innerHTML=audioHtml(i,c);}
@@ -113,18 +106,6 @@ function prog(){
   const bc=$('batchCount');if(bc)bc.textContent=stale?`${stale} مقطع يحتاج إعادة توليد`:'';
 }
 $('chunks').addEventListener('input',e=>{
-  if(e.target.dataset.sp!==undefined){
-    const i=+e.target.dataset.sp,c=chunks[i];if(!c)return;
-    c.speaker=e.target.value;
-    if(markChunkStale(c)){refreshChunkCard(i);prog()}
-    markDirty();return;
-  }
-  if(e.target.dataset.s!==undefined){
-    const i=+e.target.dataset.s,c=chunks[i];if(!c)return;
-    c.style=e.target.value;
-    if(markChunkStale(c)){refreshChunkCard(i);prog()}
-    markDirty();return;
-  }
   if(e.target.dataset.t!==undefined){
     // Only abort the chunk being edited; a text edit used to cancel every
     // running generation on each keystroke.
@@ -141,12 +122,6 @@ $('chunks').addEventListener('change',e=>{
     const i=+e.target.dataset.v,c=chunks[i];if(!c)return;
     c.voice=e.target.value;
     if(markChunkStale(c)){refreshChunkCard(i);prog()}
-    markDirty();
-  }
-  if(e.target.dataset.n!==undefined){
-    const i=+e.target.dataset.n,c=chunks[i];
-    c.name=cleanName(e.target.value)||defName(i);e.target.value=c.name;
-    if(c.url)$('a'+i).innerHTML=audioHtml(i,c);
     markDirty();
   }
 });
