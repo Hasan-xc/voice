@@ -92,10 +92,8 @@ function cancelAll(showCancelled){
   ctls.forEach(ctl=>{try{ctl.abort()}catch(e){}});
   ctls.clear();
   chunks.forEach((_,i)=>{
-    const btn=document.querySelector(`[data-g="${i}"]`);
-    if(btn)btn.disabled=false;
-    const cancel=document.querySelector(`[data-c="${i}"]`);
-    if(cancel)cancel.style.display='none';
+    const card=$('c'+i);
+    if(card)card.classList.remove('busy');
   });
   chunks.forEach((c,i)=>{
     const card=$('c'+i);

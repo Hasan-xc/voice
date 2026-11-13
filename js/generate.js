@@ -1,7 +1,3 @@
-function renderUsed(i,c){
-  const u=$('u'+i);
-  if(u)u.textContent=c.usedAccount?(c.usedAccount+(c.usedModel?' · '+c.usedModel:'')):'';
-}
 async function googleBlobWithSlots(c,ctl,m){
   const ambiguous=new Set();
   let retrySlot=null;
@@ -70,11 +66,9 @@ async function gen(i,opts){
     alert('أدخل مفتاح '+({kie:'kie.ai',google:'Google AI Studio'}[P()]||'OpenRouter')+' أولاً');
     return false;
   }
-  const m=$('m'+i),btn=document.querySelector(`[data-g="${i}"]`),cancel=document.querySelector(`[data-c="${i}"]`),card=$('c'+i);
-  if(btn)btn.disabled=true;
-  if(cancel)cancel.style.display='';
-  if(m){m.className='tag';m.textContent='جارٍ التوليد...'}
-  if(card){card.classList.add('work');card.classList.remove('err')}
+  const m=$('m'+i),card=$('c'+i);
+  if(m){m.className='tag chunk-msg';m.textContent=''}
+  if(card){card.classList.add('work','busy');card.classList.remove('err')}
   const ctl=new AbortController();ctls.set(i,ctl);
   let tries=0,timeoutTries=0,kieAttempt=opts.kieAttempt||0;
   try{
@@ -88,7 +82,6 @@ async function gen(i,opts){
         c.url=URL.createObjectURL(c.blob);
         if(P()!=='google'){c.usedAccount='';c.usedModel=''}
         const a=$('a'+i);if(a)a.innerHTML=audioHtml(i,c);
-        renderUsed(i,c);
         if(m){m.className='tag ok';m.textContent='تم ✓'}
         if(card){card.classList.add('done');card.classList.remove('err','work')}
         prog();markDirty();return true;
@@ -148,8 +141,7 @@ async function gen(i,opts){
     const owns=ctls.get(i)===ctl;
     if(owns)ctls.delete(i);
     if(epoch===myEpoch&&chunks[i]===c&&(owns||!ctls.has(i))){
-      if(btn)btn.disabled=false;
-      if(cancel)cancel.style.display='none';
+      if(card)card.classList.remove('busy');
     }
   }
 }

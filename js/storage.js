@@ -72,7 +72,8 @@ function applySnapshot(w){
   $('text').value=w.text||'';
   $('mode').value=w.mode||'chars';
   $('max').value=w.max||1500;
-  $('mergeName').value=w.mergedName||w.mergeName||'merged';
+  const savedMerge=w.mergedName||w.mergeName||'';
+  $('mergeName').value=savedMerge||'merged';
   if([...$('voiceSelect').options].some(o=>o.value===w.globalVoice))$('voiceSelect').value=w.globalVoice;
   chunks=(w.chunks||[]).map(c=>{
     const o={text:c.text||'',voice:c.voice||'',name:c.name||'',style:c.style||'',speaker:c.speaker||'',ext:c.ext||'mp3',blob:c.blob||null,
@@ -84,6 +85,7 @@ function applySnapshot(w){
   $('file').value='';
   if($('text').value.trim())setInputTab('paste');
   render();showStats();syncFileBox();
+  if(typeof autoMergeName==='function'&&(!savedMerge||savedMerge==='merged'))autoMergeName(true);
 }
 
 // ---- autosave: debounced draft in IndexedDB, restored on next visit ------

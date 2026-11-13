@@ -258,7 +258,9 @@ function updateGoogleVoiceTrigger(){
 function setGoogleVoiceSelection(id,save){
   const sel=$('gvoice');
   if(!id||![...sel.options].some(o=>o.value===id))return false;
+  const prev=sel.value;
   sel.value=id;updateGoogleVoiceTrigger();
+  if(prev!==id&&typeof markDefaultVoiceChunksStale==='function')markDefaultVoiceChunksStale();
   if(save)keyState();
   return true;
 }
@@ -432,16 +434,24 @@ function renderVoiceSelects(){
   const cur=$('voiceSelect').value;
   $('voiceSelect').innerHTML=globalOpts;
   if([...$('voiceSelect').options].some(o=>o.value===cur))$('voiceSelect').value=cur;
-  // Per-chunk lists follow the active TTS provider: Google direct and Gemini use
-  // the Google catalog; Fish uses the Fish voice list.
-  const chunkList=(P()==='google'||orGoogle)?getGoogleVoiceCatalog().map(v=>[v.name,v.id]):voices.map(v=>[v.name,v.id]);
+  // Per-chunk lists follow the active TTS provider: Google direct, kie and
+  // Gemini all take a Google voice name; Fish uses the Fish voice list.
+  const chunkList=(P()==='google'||P()==='kie'||orGoogle)?getGoogleVoiceCatalog().map(v=>[v.name,v.id]):voices.map(v=>[v.name,v.id]);
   const chunkOpts=chunkList.map(([name,id])=>`<option value="${esc(id)}">${esc(name)}</option>`).join('');
   document.querySelectorAll('select[data-v]').forEach(sel=>{
-    const kept=sel.value;
-    sel.innerHTML=`<option value="">افتراضي (من الأعلى)</option>`+chunkOpts;
-    if([...sel.options].some(o=>o.value===kept))sel.value=kept;
+    const i=+sel.dataset.v,kept=(chunks[i]&&chunks[i].voice)||'';
+    sel.innerHTML=`<option value="">الصوت الأساسي</option>`+chunkOpts;
+    if(kept&&[...sel.options].some(o=>o.value===kept))sel.value=kept;
+    else{
+      // Never keep a voice id that the active provider cannot use.
+      sel.value='';
+      if(chunks[i]&&chunks[i].voice)chunks[i].voice='';
+    }
   });
 }
+
+// Changing the base voice (kie text field) only invalidates chunks that inherit it.
+if($('kvoice'))$('kvoice').addEventListener('change',()=>{if(typeof markDefaultVoiceChunksStale==='function')markDefaultVoiceChunksStale()});
 
 // ---- short voice preview (uses the current provider + selected voice) ----
 let previewCtl=null,previewUrl=null,previewAudio=null;

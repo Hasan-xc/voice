@@ -23,7 +23,7 @@ $('splitbtn').onclick=()=>{
   releaseUrls();
   if(typeof clearDirectorUndo==='function')clearDirectorUndo();
   chunks=smartSplit(t,meas[$('mode').value],Math.max(20,+$('max').value||1500)).map((text,i)=>({text,voice:'',name:defName(i),style:'',speaker:''}));
-  render();markDirty();$('ctrl').scrollIntoView({behavior:'smooth'});
+  render();autoMergeName(false);markDirty();$('ctrl').scrollIntoView({behavior:'smooth'});
 };
 
 // ---- render ----
@@ -39,23 +39,55 @@ function uniqueName(name,used){
   let k=2;while(used.has(`${base}-${k}${e}`))k++;
   const n=`${base}-${k}${e}`;used.add(n);return n;
 }
-const audioHtml=(i,c)=>`<audio controls preload="none" src="${c.url}"></audio><a href="${c.url}" download="${esc(fname(i,c))}">تحميل</a>`;
+const dlIcon='<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M5 19h14"/></svg>';
+const genIcon='<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10v4"/><path d="M8 7v10"/><path d="M12 4v16"/><path d="M16 7v10"/><path d="M20 10v4"/></svg>';
+// audio player + icon-only download (the word «تحميل» was removed on purpose)
+const audioHtml=(i,c)=>`<div class="audio-row"><audio controls preload="none" src="${c.url}"></audio><a class="dl-btn" href="${c.url}" download="${esc(fname(i,c))}" title="تنزيل: ${esc(fname(i,c))}" aria-label="تنزيل الصوت ${esc(fname(i,c))}">${dlIcon}</a></div>`;
+
+// The merged file is always named after the opening words of the story, so the
+// user does not have to rename "merged" by hand every time.
+let mergeNameAuto='merged';
+function autoMergeName(force){
+  const box=$('mergeName');if(!box)return '';
+  const cur=String(box.value||'').trim();
+  if(!force&&cur&&cur!=='merged'&&cur!==mergeNameAuto)return cur;
+  const t=storyTitle($('text').value);
+  if(!t)return cur;
+  mergeNameAuto=t;box.value=t;
+  if(typeof markDirty==='function')markDirty();
+  return t;
+}
+
 function render(){
   if(mergeUrl){URL.revokeObjectURL(mergeUrl);mergeUrl=null}
   $('chunks').innerHTML='';
   chunks.forEach((c,i)=>{
     const d=document.createElement('div');d.className='card chunk';d.id='c'+i;
-    d.innerHTML=`<div class="top"><span class="num" dir="ltr">${i+1} / ${chunks.length}</span>
-      <span class="row"><select data-v="${i}" dir="ltr" style="width:150px"></select>
-      <button data-g="${i}">🔊 توليد صوت</button>
-      <button class="ghost mini" data-c="${i}" style="display:none">✕ إلغاء</button></span></div>
-      <textarea data-t="${i}">${esc(c.text)}</textarea>
-      <div class="row" style="margin-top:4px"><span class="lbl" style="margin:0">اسم الملف</span><input class="fname" data-n="${i}" dir="ltr" value="${esc(c.name||defName(i))}" aria-label="اسم ملف المقطع ${i+1}"></div>
-      <div class="row" style="margin-top:4px"><span class="lbl" style="margin:0">اسم المتحدث</span><input class="speaker-inp" data-sp="${i}" dir="auto" value="${esc(c.speaker||'')}" placeholder="مثلاً: الراوي، الأم، الطفل" aria-label="اسم متحدث المقطع ${i+1}"></div>
-      <div class="row" style="margin-top:4px"><span class="lbl" style="margin:0">أسلوب الإلقاء</span><input class="style-inp" data-s="${i}" dir="auto" value="${esc(c.style||'')}" placeholder="اختياري — مثلاً: هادئ ودافئ" aria-label="أسلوب إلقاء المقطع ${i+1}"></div>
-      <div class="tag" id="s${i}"></div><div class="tag" id="m${i}"></div><div class="tag" id="u${i}"></div><div id="a${i}"></div>`;
+    d.innerHTML=`<div class="top">
+      <span class="num" dir="ltr">${i+1} / ${chunks.length}</span>
+      <span class="chunk-stats" id="s${i}"></span>
+      <label class="voice-pick" title="صوت هذا المقطع — يتجاوز الصوت الأساسي المختار فوق">
+        <span class="vp-ico" aria-hidden="true">🎚️</span>
+        <select data-v="${i}" dir="ltr" aria-label="صوت المقطع ${i+1}"></select>
+      </label>
+    </div>
+    <div class="ta-wrap chunk-ta">
+      <textarea data-t="${i}" aria-label="نص المقطع ${i+1}">${esc(c.text)}</textarea>
+      <div class="ta-acts">
+        <button type="button" class="gen-ico" data-g="${i}" title="توليد صوت هذا المقطع" aria-label="توليد صوت المقطع ${i+1}">${genIcon}</button>
+        <span class="gen-spin" aria-hidden="true"></span>
+        <button type="button" class="cancel-ico" data-c="${i}" title="إلغاء التوليد" aria-label="إلغاء توليد المقطع ${i+1}">✕</button>
+      </div>
+    </div>
+    <div id="a${i}"></div>
+    <div class="tag chunk-msg" id="m${i}"></div>
+    <div class="meta-grid">
+      <label class="meta-f"><span>اسم الملف</span><input class="fname" data-n="${i}" dir="ltr" value="${esc(c.name||defName(i))}" aria-label="اسم ملف المقطع ${i+1}"></label>
+      <label class="meta-f"><span>اسم المتحدث</span><input class="speaker-inp" data-sp="${i}" dir="auto" value="${esc(c.speaker||'')}" placeholder="مثلاً: الراوي" aria-label="اسم متحدث المقطع ${i+1}"></label>
+      <label class="meta-f wide"><span>أسلوب الإلقاء</span><input class="style-inp" data-s="${i}" dir="auto" value="${esc(c.style||'')}" placeholder="اختياري — مثلاً: هادئ ودافئ" aria-label="أسلوب إلقاء المقطع ${i+1}"></label>
+    </div>`;
     $('chunks').appendChild(d);cs(i);
-    if(c.blob){$('c'+i).classList.add('done');refreshChunkCard(i);renderUsed(i,c);
+    if(c.blob){$('c'+i).classList.add('done');refreshChunkCard(i);
       $('a'+i).innerHTML=audioHtml(i,c);}
   });
   renderVoiceSelects();
@@ -65,9 +97,9 @@ function render(){
 }
 function cs(i){
   const t=chunks[i].text,tk=tokens(t);
-  const el=$('s'+i);
+  const el=$('s'+i);if(!el)return;
   el.textContent=`${fmt(t.length)} حرف · ${fmt(words(t))} كلمة · ≈${fmt(tk)} توكن · ${fmt(bytes(t))} بايت`;
-  if(tk>TOKEN_WARN[P()])el.innerHTML+=' · <span class="warn">⚠ قريب من حد السياق، يُفضّل تقسيمه أصغر</span>';
+  if(tk>TOKEN_WARN[P()])el.innerHTML+=' · <span class="warn" title="قريب من حد السياق، يُفضّل تقسيمه أصغر">⚠</span>';
 }
 function prog(){
   const n=chunks.length,ready=chunks.filter(c=>c.blob&&!c.stale).length;
@@ -101,7 +133,6 @@ $('chunks').addEventListener('input',e=>{
     c.text=e.target.value;c.stale=false;
     if(c.url){try{URL.revokeObjectURL(c.url)}catch(_){}}
     c.blob=null;c.url=null;c.usedAccount='';c.usedModel='';
-    const u=$('u'+i);if(u)u.textContent='';
     $('a'+i).innerHTML='';$('c'+i).classList.remove('done','err');$('m'+i).textContent='';cs(i);prog();markDirty();
   }
 });
@@ -120,6 +151,7 @@ $('chunks').addEventListener('change',e=>{
   }
 });
 $('chunks').addEventListener('click',e=>{
-  if(e.target.dataset.g!==undefined){stopReq=false;gen(+e.target.dataset.g)}
-  if(e.target.dataset.c!==undefined){const i=+e.target.dataset.c;const ctl=ctls.get(i);if(ctl)ctl.abort()}
+  const g=e.target.closest('[data-g]'),c=e.target.closest('[data-c]');
+  if(g){stopReq=false;gen(+g.dataset.g)}
+  else if(c){const i=+c.dataset.c;const ctl=ctls.get(i);if(ctl)ctl.abort()}
 });
